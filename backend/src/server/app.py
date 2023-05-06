@@ -6,7 +6,7 @@ app = FastAPI()
 origins = [
    "http://192.168.211.:8000",
    "http://localhost",
-   "ttp://localhost:3000",
+   "http://localhost:3000",
 ]
 
 app.add_middleware(
@@ -28,7 +28,6 @@ async def root():
 @app.post("/search/")
 async def search_paper(message: SearchItem):
     hardcoded_search_term = "Stable diffusion model"
-
     # TODO: Do Arxiv API call and fetch the top 10 results
     return message
 
