@@ -31,15 +31,32 @@ async def search_paper(message: SearchItem):
     hardcoded_search_term = "Stable diffusion model"
     # TODO: Do Arxiv API call and fetch the top 10 results
     search = arxiv.Search(
-    query = hardcoded_search_term,
-    max_results = 10,
+    query = message.search_term,
+    # query = hardcoded_search_term,
+    max_results = 1, # TODD change to 100 later
     sort_by = arxiv.SortCriterion.Relevance,
     sort_order = arxiv.SortOrder.Descending
     )
-    result_message = ""
-    for result in search.results():
-        result_message += result.title +' --- \n'
-        result_message += result.summary +' --- \n'
-    return result_message
+    print(search.results())
+
+    paper = next(arxiv.Search(id_list=["1605.08386v1"]).results())
+    # Download the PDF to the PWD with a default filename.
+
+    # 0. Make embedding for the question (Hector)
+    # 1. Make embedding the list of 100 abstracts (Hector)
+    # 2 do the k-nearst neighbors between question on the abstracts embeddings (from paper qb), get the top 10 papers (Hector)
+
+    # Kiyo to find out download PDF logic (or faster way)
+    # Yuan to do some research on embedding optimization with LLM (Cohere rerank)
+
+    # 3.1 Use LLM to summarize each 10 abstracts and the question
+    # 3.2 Download 10 papers, make embedding for each, and answer the question with LLM
+    # 3.3 Pass the entire 10 papers to GPT-4 and answer the question
+
+    # (Extension) 4. Let the users be able to interact with a particular paper
+
+    # Think of how to display the results in the frontend UI
+
+    return search.results()
 
 
