@@ -1,6 +1,7 @@
 from fastapi import FastAPI
 from pydantic import BaseModel
 from fastapi.middleware.cors import CORSMiddleware
+import arxiv
 app = FastAPI()
 
 origins = [
@@ -29,11 +30,16 @@ async def root():
 async def search_paper(message: SearchItem):
     hardcoded_search_term = "Stable diffusion model"
     # TODO: Do Arxiv API call and fetch the top 10 results
-    return message
-
-    # try:
-    #     return message
-    # except TypeError:
-    #     print("Wrong input data type.")
+    search = arxiv.Search(
+    query = hardcoded_search_term,
+    max_results = 10,
+    sort_by = arxiv.SortCriterion.Relevance,
+    sort_order = arxiv.SortOrder.Descending
+    )
+    result_message = ""
+    for result in search.results():
+        result_message += result.title +' --- \n'
+        result_message += result.summary +' --- \n'
+    return result_message
 
 
