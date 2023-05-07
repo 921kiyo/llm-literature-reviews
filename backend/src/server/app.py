@@ -2,6 +2,8 @@ from fastapi import FastAPI
 from pydantic import BaseModel
 from fastapi.middleware.cors import CORSMiddleware
 import arxiv
+import tempfile
+
 app = FastAPI()
 
 origins = [
@@ -28,18 +30,19 @@ async def root():
 
 @app.post("/search/")
 async def search_paper(message: SearchItem):
-    hardcoded_search_term = "Stable diffusion model"
-    # TODO: Do Arxiv API call and fetch the top 10 results
-    search = arxiv.Search(
-    query = hardcoded_search_term,
-    max_results = 10,
-    sort_by = arxiv.SortCriterion.Relevance,
-    sort_order = arxiv.SortOrder.Descending
-    )
-    result_message = ""
-    for result in search.results():
-        result_message += result.title +' --- \n'
-        result_message += result.summary +' --- \n'
-    return result_message
+    search_results = arxiv.Search(
+        query = message.search_term,
+        max_results = 5,
+        sort_by = arxiv.SortCriterion.Relevance,
+        sort_order = arxiv.SortOrder.Descending
+    ).results()
+
+    # TODO: try webscraping instead as it might be faster
+    with tempfile.TemporaryDirectory() as tempdir:
+        # TODO: Make this step parallel
+        for result in search_results:
+            result.download_pdf(dirpath=tempdir)
+
+    return 0
 
 
