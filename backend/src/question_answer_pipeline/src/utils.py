@@ -20,6 +20,33 @@ CITATIONS_FILE = os.path.join(ROOT_DIRECTORY, 'citations.json')
 DOCS_FILE = os.path.join(ROOT_DIRECTORY, 'docs')
 INDEX_DIRECTORY = os.path.join(ROOT_DIRECTORY, 'index')
 
+def qa_pdf(question, force_rebuild=False, use_modal=True):
+    """
+    q and a on pdf documents
+    :param question:
+    :param force_rebuild:
+    :param use_modal:
+    :return:
+    """
+
+    # TODO: setup directory_path
+
+    # create a docstore that stays updated with the filesystem
+    # it is rebuilt if pdfs are deleted and items are added when new files are detected
+    docs = initialize_docstore(force_rebuild=force_rebuild)
+
+    queries = [question]
+
+    print('embedding')
+    question_embeddings = embed_questions(queries, use_modal=os.environ['MODAL'])
+
+    print('getting answers')
+    answers = get_answers(docs, queries, question_embeddings)
+
+    for answer in answers:
+        print(answer.formatted_answer)
+
+
 def qa_abstracts(question, arxiv_results=None):
     # create a docstore that stays updated with the filesystem
     # it is rebuilt if pdfs are deleted and items are added when new files are detected

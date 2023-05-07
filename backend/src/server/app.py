@@ -2,9 +2,8 @@ from fastapi import FastAPI
 from pydantic import BaseModel
 from fastapi.middleware.cors import CORSMiddleware
 import arxiv
-import tempfile
 
-from question_answer_pipeline.src.utils import qa_abstracts
+from question_answer_pipeline.src.utils import qa_abstracts, qa_pdf
 
 app = FastAPI()
 
@@ -45,7 +44,7 @@ async def root():
 async def search_paper(message: SearchItem):
     search_results = arxiv.Search(
         query = message.search_term,
-        max_results = 1,
+        max_results = 2,
         sort_by = arxiv.SortCriterion.Relevance,
         sort_order = arxiv.SortOrder.Descending
     ).results()
@@ -53,10 +52,10 @@ async def search_paper(message: SearchItem):
     qa_abstracts(message.search_term, search_results_list)
 
     # TODO: try webscraping instead as it might be faster
-    with tempfile.TemporaryDirectory() as tempdir:
-        # TODO: Make this step parallel
-        for result in search_results:
-            result.download_pdf(dirpath=tempdir)
+    # TODO: Make this step parallel
+    for result in search_results:
+        result.download_pdf()
+    qa_pdf(question=message.search_term, use_modal=False)
 
     return 0
 

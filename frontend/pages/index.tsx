@@ -42,7 +42,7 @@ const Home: NextPage = () => {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        search_term: "hello world",
+        search_term: "what is deep neural network?",
       }),
     });
 
