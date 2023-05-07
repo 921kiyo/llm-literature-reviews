@@ -1,7 +1,13 @@
 # See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
 
+backend/src/question_answer_pipeline/test/abstract_embeddings/
+backend/src/question_answer_pipeline/test/docs
+backend/src/question_answer_pipeline/test/index/**
+embedding_models/**
+
 frontend/node_modules/
 frontend/.next/
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
