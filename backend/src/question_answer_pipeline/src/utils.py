@@ -4,16 +4,17 @@ from InstructorEmbedding import INSTRUCTOR
 import json
 from tqdm import tqdm
 import re
-from qa_utils import readers, Docs
+from ..qa_utils import readers, Docs
 import pickle
-from src.embedding import embed_file_chunks
+from .embedding import embed_file_chunks
 from langchain.chains import LLMChain
 from langchain.prompts.chat import HumanMessagePromptTemplate, ChatPromptTemplate, SystemMessage
 from langchain.chat_models import ChatOpenAI
 
-ROOT_DIRECTORY = os.environ['ROOT_DIRECTORY']
+ROOT_DIRECTORY = os.getenv('ROOT_DIRECTORY', '/test')
 
 FILE_DIRECTORY = os.path.join(ROOT_DIRECTORY, 'pdfs')
+ABSTRACTS_EMB_DIR = os.path.join(ROOT_DIRECTORY, 'abstract_embeddings')
 EMB_DIR = os.path.join(ROOT_DIRECTORY, 'embeddings')
 CITATIONS_FILE = os.path.join(ROOT_DIRECTORY, 'citations.json')
 DOCS_FILE = os.path.join(ROOT_DIRECTORY, 'docs')
@@ -25,6 +26,140 @@ def get_model():
     model = INSTRUCTOR('hkunlp/instructor-xl', cache_folder=model_root)
 
     return model
+
+
+def parse_arxiv_json(arxiv_results):
+    """
+    Retrieves
+    1. summary
+    2. citation
+    3. key used for inline citation.
+
+    :param arXiv_results: arxiv JSON
+    :return: dict. key=entry_id, val=dict(summary: summary, citation: MLA formatted citation, key: author, year)
+    """
+    from datetime import datetime
+
+    mla_months = {
+        1: "Jan.",
+        2: "Feb.",
+        3: "Mar.",
+        4: "Apr.",
+        5: "May",
+        6: "June",
+        7: "July",
+        8: "Aug.",
+        9: "Sept.",
+        10: "Oct.",
+        11: "Nov.",
+        12: "Dec."
+    }
+
+    source = "arXiv. "
+
+    path_citations_map = {}
+
+    for arxiv_res in arxiv_results:
+        authors_list = [a['name'] for a in arxiv_res['authors']]
+        authors = ', '.join(authors_list) + '. '
+        title = arxiv_res['title'] + '. '
+        published_date = datetime.fromisoformat(arxiv_res['published'])
+        year = str(published_date.year)
+        published_date = mla_months[published_date.month] + ', ' + year + '. '
+        url = arxiv_res['entry_id']
+
+        citation = authors + title + source + url.split('/')[-1] + '. ' + published_date + url
+        key = f"{authors_list[0]}, {year}"
+
+        summary = arxiv_res['summary']
+
+        path_citations_map[url] = {'summary': summary, 'citation': citation, 'key': key}
+
+    return path_citations_map
+
+
+def embed_abstracts(parsed_arxiv_results):
+    os.makedirs(ABSTRACTS_EMB_DIR, exist_ok=True)
+    existing_embeddings = set([i[:-4] for i in os.listdir(ABSTRACTS_EMB_DIR)])
+    print(f'existing_embeddings: {existing_embeddings}')
+
+    arxiv_entries = set([i.split('/')[-1] for i in parsed_arxiv_results.keys()])
+    new_embeddings = arxiv_entries - existing_embeddings
+    print(f'Embeddings to process: {new_embeddings}')
+    to_process = {k: v for k, v in parsed_arxiv_results.items() if k.split('/')[-1] in new_embeddings}
+    print(f'Embeddings to process: {to_process}')
+
+    for entry_id, doc_info in tqdm(to_process.items()):
+
+        print(f'Processing: {entry_id}')
+
+        citation = doc_info['citation']
+        key = doc_info['key']
+        summary = [doc_info['summary']]
+
+        file_embeddings, num_tokens = embed_file_chunks(summary, use_modal=os.environ['MODAL'])
+        metadata = [dict(
+            citation=citation,
+            dockey=key,
+            key=f'abstract_{key}'
+        )]
+        # save text chunks, file embeddings, metadatas, and num_tokens for each
+        save_dict = [summary, file_embeddings, metadata, num_tokens]
+
+        path = os.path.join(ABSTRACTS_EMB_DIR, entry_id.split('/')[-1] + '.pkl')
+        print(f'Saving abstract embeddings to path: {path}')
+
+        # save embeddings
+        with open(path, 'wb') as fp:
+            pickle.dump(save_dict, fp)
+
+
+def create_abstract_docs(docs):
+    print('Building DOCS')
+
+    for no_files, f in enumerate(os.listdir(ABSTRACTS_EMB_DIR)):
+        file_path = os.path.join(ABSTRACTS_EMB_DIR, f)
+
+        with open(file_path, 'rb') as fb:
+            processed_file = pickle.load(fb)
+
+        filename = f[:-4]
+        print(f'Adding: {filename}')
+
+        # parse processed file
+        summary = processed_file[0]
+        file_embeddings = processed_file[1]
+        metadata = processed_file[2]  # dict(citation=citation, dockey= key, key=f"{key} pages {pg}",)
+        print('-'*10)
+        print(metadata)
+        # add to doc class
+        docs.add_from_embeddings(path=filename,
+                                 texts=summary,
+                                 text_embeddings=file_embeddings,
+                                 metadatas=metadata)
+    print(f'added: {no_files + 1}')
+
+    with open(DOCS_FILE, 'wb') as fb:
+        pickle.dump(docs, fb)
+
+
+def from_arxiv_docstore(arxiv_results):
+    """
+
+    :param arxiv_result: json response from arxiv search
+    :return: Docs class
+    """
+    # compare pdf files with embedding pkl files. If they don't match we can add or remove files
+    parsed_results = parse_arxiv_json(arxiv_results)
+
+    # embed file summaries
+    embed_abstracts(parsed_results)
+
+    # create docs class for vector search
+    docs = Docs(index_path=INDEX_DIRECTORY)
+    create_abstract_docs(docs)
+
+    return docs
 
 
 def files_for_search(file_directory, delete_remove=True):
@@ -126,7 +261,7 @@ def compare_object_with_dir(docs):
     return embeddings_in_directory.difference(files_in_docs)
 
 
-def update_embeddings(docs):
+def create_and_update_docs(docs):
     """
     compare Docs contents with directory
     - add embeddings to docstore if needed
@@ -193,6 +328,12 @@ def check_citations(files_in_directory):
 
 
 def initialize_docstore(force_rebuild=False):
+    """
+    Build from local directory of pdfs. For reference from PubFind, might not be needed here.
+
+    :param force_rebuild: rebuild DOCS class
+    :return: docs class
+    """
     # compare pdf files with embedding pkl files. If they don't match we can add or remove files
     files_to_embed, files_removed_bool = files_for_search(FILE_DIRECTORY)
 
@@ -221,7 +362,7 @@ def initialize_docstore(force_rebuild=False):
         docs = Docs(index_path=INDEX_DIRECTORY)
 
     # add embeddings
-    update_embeddings(docs)
+    create_and_update_docs(docs)
 
     return docs
 

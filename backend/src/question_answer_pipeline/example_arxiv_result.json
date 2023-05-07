@@ -1,0 +1,113 @@
+[
+  {
+    "entry_id": "http://arxiv.org/abs/1701.00257v2",
+    "updated": "2017-01-05T17:58:43+00:00",
+    "published": "2017-01-01T16:01:13+00:00",
+    "title": "Analyzing PFG anisotropic anomalous diffusions by instantaneous signal attenuation method",
+    "authors": [
+      {
+        "name": "Guoxing Lin"
+      }
+    ],
+    "summary": "Anomalous diffusion has been investigated in many systems. Pulsed field\ngradient (PFG) anomalous diffusion is much more complicated than PFG normal\ndiffusion. There have been many theoretical and experimental studies for PFG\nisotropic anomalous diffusion, but there are very few theoretical treatments\nreported for anisotropic anomalous diffusion. Currently, there is not a general\nPFG signal attenuation expression, which includes the finite gradient pulse\neffect and can treat all three types of anisotropic fractional diffusions:\ngeneral fractional diffusion, time fractional diffusion, and space-fractional\ndiffusion. In this paper, the recently developed instantaneous signal\nattenuation (ISA) method was applied to obtain PFG signal attenuation\nexpression for free and restricted anisotropic anomalous diffusion with two\nmodels: fractal derivative and fractional derivative models. The obtained PFG\nsignal attenuation expression for anisotropic anomalous diffusion can reduce to\nthe reported result for PFG anisotropic normal diffusion. The results can also\nreduce to reported PFG isotropic anomalous diffusion results obtained by\neffective phase shift diffusion equation method and instantaneous signal\nattenuation method. For anisotropic space-fractional diffusion, the obtained\nresult agrees with that obtained by the modified Bloch equation method.\nAdditionally, The PFG signal attenuation expressions for free and restricted\nanisotropic curvilinear diffusions were derived by the traditional method, the\nresults of which agree with the PFG anisotropic fractional diffusion results\nbased on the fractional derivative model. The powder pattern of PFG anisotropic\ndiffusion was also discussed. The results here improve our understanding of PFG\nanomalous diffusion, and provide new formalisms for PFG anisotropic anomalous\ndiffusion in NMR and MRI.",
+    "comment": "PFG diffusion NMR and MRI, anomalous diffusion, diffusion tensor",
+    "journal_ref": null,
+    "doi": null,
+    "primary_category": "physics.chem-ph",
+    "categories": [
+      "physics.chem-ph"
+    ],
+    "links": [
+      {
+        "href": "http://arxiv.org/abs/1701.00257v2",
+        "title": null,
+        "rel": "alternate",
+        "content_type": null
+      },
+      {
+        "href": "http://arxiv.org/pdf/1701.00257v2",
+        "title": "pdf",
+        "rel": "related",
+        "content_type": null
+      }
+    ],
+    "pdf_url": "http://arxiv.org/pdf/1701.00257v2",
+    "_raw": {
+      "id": "http://arxiv.org/abs/1701.00257v2",
+      "guidislink": true,
+      "link": "http://arxiv.org/abs/1701.00257v2",
+      "updated": "2017-01-05T17:58:43Z",
+      "updated_parsed": [
+        2017,
+        1,
+        5,
+        17,
+        58,
+        43,
+        3,
+        5,
+        0
+      ],
+      "published": "2017-01-01T16:01:13Z",
+      "published_parsed": [
+        2017,
+        1,
+        1,
+        16,
+        1,
+        13,
+        6,
+        1,
+        0
+      ],
+      "title": "Analyzing PFG anisotropic anomalous diffusions by instantaneous signal\n  attenuation method",
+      "title_detail": {
+        "type": "text/plain",
+        "language": null,
+        "base": "http://export.arxiv.org/api/query?search_query=diffusion+model&id_list=&sortBy=relevance&sortOrder=descending&start=0&max_results=1",
+        "value": "Analyzing PFG anisotropic anomalous diffusions by instantaneous signal\n  attenuation method"
+      },
+      "summary": "Anomalous diffusion has been investigated in many systems. Pulsed field\ngradient (PFG) anomalous diffusion is much more complicated than PFG normal\ndiffusion. There have been many theoretical and experimental studies for PFG\nisotropic anomalous diffusion, but there are very few theoretical treatments\nreported for anisotropic anomalous diffusion. Currently, there is not a general\nPFG signal attenuation expression, which includes the finite gradient pulse\neffect and can treat all three types of anisotropic fractional diffusions:\ngeneral fractional diffusion, time fractional diffusion, and space-fractional\ndiffusion. In this paper, the recently developed instantaneous signal\nattenuation (ISA) method was applied to obtain PFG signal attenuation\nexpression for free and restricted anisotropic anomalous diffusion with two\nmodels: fractal derivative and fractional derivative models. The obtained PFG\nsignal attenuation expression for anisotropic anomalous diffusion can reduce to\nthe reported result for PFG anisotropic normal diffusion. The results can also\nreduce to reported PFG isotropic anomalous diffusion results obtained by\neffective phase shift diffusion equation method and instantaneous signal\nattenuation method. For anisotropic space-fractional diffusion, the obtained\nresult agrees with that obtained by the modified Bloch equation method.\nAdditionally, The PFG signal attenuation expressions for free and restricted\nanisotropic curvilinear diffusions were derived by the traditional method, the\nresults of which agree with the PFG anisotropic fractional diffusion results\nbased on the fractional derivative model. The powder pattern of PFG anisotropic\ndiffusion was also discussed. The results here improve our understanding of PFG\nanomalous diffusion, and provide new formalisms for PFG anisotropic anomalous\ndiffusion in NMR and MRI.",
+      "summary_detail": {
+        "type": "text/plain",
+        "language": null,
+        "base": "http://export.arxiv.org/api/query?search_query=diffusion+model&id_list=&sortBy=relevance&sortOrder=descending&start=0&max_results=1",
+        "value": "Anomalous diffusion has been investigated in many systems. Pulsed field\ngradient (PFG) anomalous diffusion is much more complicated than PFG normal\ndiffusion. There have been many theoretical and experimental studies for PFG\nisotropic anomalous diffusion, but there are very few theoretical treatments\nreported for anisotropic anomalous diffusion. Currently, there is not a general\nPFG signal attenuation expression, which includes the finite gradient pulse\neffect and can treat all three types of anisotropic fractional diffusions:\ngeneral fractional diffusion, time fractional diffusion, and space-fractional\ndiffusion. In this paper, the recently developed instantaneous signal\nattenuation (ISA) method was applied to obtain PFG signal attenuation\nexpression for free and restricted anisotropic anomalous diffusion with two\nmodels: fractal derivative and fractional derivative models. The obtained PFG\nsignal attenuation expression for anisotropic anomalous diffusion can reduce to\nthe reported result for PFG anisotropic normal diffusion. The results can also\nreduce to reported PFG isotropic anomalous diffusion results obtained by\neffective phase shift diffusion equation method and instantaneous signal\nattenuation method. For anisotropic space-fractional diffusion, the obtained\nresult agrees with that obtained by the modified Bloch equation method.\nAdditionally, The PFG signal attenuation expressions for free and restricted\nanisotropic curvilinear diffusions were derived by the traditional method, the\nresults of which agree with the PFG anisotropic fractional diffusion results\nbased on the fractional derivative model. The powder pattern of PFG anisotropic\ndiffusion was also discussed. The results here improve our understanding of PFG\nanomalous diffusion, and provide new formalisms for PFG anisotropic anomalous\ndiffusion in NMR and MRI."
+      },
+      "authors": [
+        {
+          "name": "Guoxing Lin"
+        }
+      ],
+      "author_detail": {
+        "name": "Guoxing Lin"
+      },
+      "author": "Guoxing Lin",
+      "arxiv_comment": "PFG diffusion NMR and MRI, anomalous diffusion, diffusion tensor",
+      "links": [
+        {
+          "href": "http://arxiv.org/abs/1701.00257v2",
+          "rel": "alternate",
+          "type": "text/html"
+        },
+        {
+          "title": "pdf",
+          "href": "http://arxiv.org/pdf/1701.00257v2",
+          "rel": "related",
+          "type": "application/pdf"
+        }
+      ],
+      "arxiv_primary_category": {
+        "term": "physics.chem-ph",
+        "scheme": "http://arxiv.org/schemas/atom"
+      },
+      "tags": [
+        {
+          "term": "physics.chem-ph",
+          "scheme": "http://arxiv.org/schemas/atom",
+          "label": null
+        }
+      ]
+    }
+  }
+]
