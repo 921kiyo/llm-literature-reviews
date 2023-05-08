@@ -59,18 +59,21 @@ async def search_paper(message: SearchItem):
     search_results_list = parse_search_results(search_results)
 
     parsed_arxiv_results = parse_arxiv_json(search_results_list)
-    nearest_neighbors, question_embeddings = qa_abstracts(question=message.search_term,
+    nearest_neighbors, question_embeddings, asb_answers = qa_abstracts(question=message.search_term,
                                                           k=5,
                                                           parsed_arxiv_results=parsed_arxiv_results)
 
-    relevant_documents = {url: parsed_arxiv_results[url] for url in nearest_neighbors}
+    # relevant_documents = {url: parsed_arxiv_results[url] for url in nearest_neighbors}
 
-    relevant_pdfs = qa_pdf(question=message.search_term,
-                           k=20,
-                           parsed_arxiv_results=relevant_documents,
-                           question_embeddings=question_embeddings)
+    # relevant_pdfs, answers = qa_pdf(question=message.search_term,
+    #                        k=20,
+    #                        parsed_arxiv_results=relevant_documents,
+    #                        question_embeddings=question_embeddings)
 
-
-    return 0
+    return {"question": asb_answers[0].question,
+            "answer": asb_answers[0].answer,
+            "context": asb_answers[0].context,
+            "contexts": asb_answers[0].contexts,
+            "references": asb_answers[0].references}
 
 

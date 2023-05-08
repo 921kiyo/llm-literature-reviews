@@ -53,7 +53,7 @@ def qa_pdf(question, k, parsed_arxiv_results, question_embeddings=None):
         print('Answer from pdfs:')
         print(answer.formatted_answer)
 
-    return answer.contexts
+    return answer.contexts, answers
 
 
 def qa_abstracts(question, k, parsed_arxiv_results=None):
@@ -82,7 +82,7 @@ def qa_abstracts(question, k, parsed_arxiv_results=None):
         print('Answer from abstracts:')
         print(answer.formatted_answer)
 
-    return answer.contexts, question_embeddings
+    return answer.contexts, question_embeddings, answers
 
 
 def parse_arxiv_json(arxiv_results):

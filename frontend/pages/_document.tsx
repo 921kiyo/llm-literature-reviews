@@ -8,19 +8,19 @@ class MyDocument extends Document {
           <link rel="icon" href="/favicon.ico" />
           <meta
             name="description"
-            content="Get insights from research papers in seconds."
+            content="Get insights from arXiv papers in seconds."
           />
           <meta property="og:site_name" content="ResearchAgent.com" />
           <meta
             property="og:description"
-            content="Get insights from research papers in seconds."
+            content="Get insights from arXiv papers in seconds."
           />
-          <meta property="og:title" content="Research Agent" />
+          <meta property="og:title" content="ArXiv Agent" />
           <meta name="twitter:card" content="summary_large_image" />
-          <meta name="twitter:title" content="Research Agent" />
+          <meta name="twitter:title" content="ArXiv Agent" />
           <meta
             name="twitter:description"
-            content="Get insights from research papers in seconds."
+            content="Get insights from arXiv papers in seconds."
           />
           <meta
             property="og:image"
