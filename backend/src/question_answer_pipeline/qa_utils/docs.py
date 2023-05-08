@@ -4,7 +4,7 @@ import os
 import os
 from pathlib import Path
 import re
-from .utils import maybe_is_text, maybe_is_truncated
+from .utils import maybe_is_text
 from .qaprompts import (
     summary_prompt,
     qa_prompt,
@@ -35,10 +35,10 @@ class Answer:
 
     question: str
     answer: str = ""
-    context: str = ""
-    contexts: List[Any] = None
-    references: str = ""
-    formatted_answer: str = ""
+    context: str = ""  # shows which documents were relevant to answer
+    contexts: Dict[str, Tuple] = None  # dict(url= (key, citation, llm_summary, chunked_text))
+    references: str = ""  # string for references
+    formatted_answer: str = ""  # formatted answer to question with bibliography
     passages: Dict[str, str] = None
     tokens: int = 0
     question_embedding: List[float] = None
@@ -46,7 +46,7 @@ class Answer:
     def __post_init__(self):
         """Initialize the answer."""
         if self.contexts is None:
-            self.contexts = []
+            self.contexts = {}
         if self.passages is None:
             self.passages = {}
 
@@ -283,26 +283,20 @@ class Docs:
     ) -> str:
         if self._faiss_index is None:
             self._build_faiss_index()
+
+        # perform vectorsearch
         _k = k
+
         if key_filter is not None:
             _k = k * 10  # heuristic
-        # want to work through indices but less k
-        if marginal_relevance:
-            if not answer.from_embed:
-                docs = self._faiss_index.max_marginal_relevance_search(
-                    answer.question, k=_k, fetch_k=5 * _k
-                )
-            else:
-                docs = self._faiss_index.max_marginal_relevance_search_by_vector(
-                    answer.question_embedding, k=_k, fetch_k=5 * _k
-                )
-        else:
-            docs = self._faiss_index.similarity_search(
-                answer.question, k=_k, fetch_k=5 * _k
-            )
+
+        docs = self.vector_search(answer, _k, marginal_relevance=marginal_relevance)
+
+        # Grab the information from the nearest neigbors metadata
         for doc in docs:
             if key_filter is not None and doc.metadata["dockey"] not in key_filter:
                 continue
+
             c = (
                 doc.metadata["key"],
                 doc.metadata["citation"],
@@ -311,20 +305,25 @@ class Docs:
                     context_str=doc.page_content,
                     citation=doc.metadata["citation"],
                 ),
-                doc.page_content,
+                doc.page_content
             )
+
             if "Not applicable" not in c[2]:
-                answer.contexts.append(c)
+                answer.contexts[doc.metadata['unique_id']] = c
                 yield answer
             if len(answer.contexts) == max_sources:
                 break
+
+        # Create context_str which has relevant sources and their citation
+        # will be fed into LLM for final answer
         context_str = "\n\n".join(
-            [f"{k}: {s}" for k, c, s, t in answer.contexts if "Not applicable" not in s]
+            [f"{k}: {s}" for k, c, s, t in answer.contexts.values() if "Not applicable" not in s]
         )
-        valid_keys = [k for k, c, s, t in answer.contexts if "Not applicable" not in s]
+        valid_keys = [k for k, c, s, t in answer.contexts.values() if "Not applicable" not in s]
         if len(valid_keys) > 0:
             context_str += "\n\nValid keys: " + ", ".join(valid_keys)
         answer.context = context_str
+
         yield answer
 
     def generate_search_query(self, query: str) -> List[str]:
@@ -364,7 +363,8 @@ class Docs:
         max_sources: int = 5,
         length_prompt: str = "about 100 words",
         marginal_relevance: bool = True,
-        embedding: Optional[List[float]] = None
+        embedding: Optional[List[float]] = None,
+        vector_search_only: bool = False
     ):
         for answer in self._query(
             query,
@@ -372,7 +372,8 @@ class Docs:
             max_sources=max_sources,
             length_prompt=length_prompt,
             marginal_relevance=marginal_relevance,
-            embedding=embedding
+            embedding=embedding,
+            vector_search_only=vector_search_only
         ):
             pass
         return answer
@@ -384,12 +385,14 @@ class Docs:
         max_sources: int,
         length_prompt: str,
         marginal_relevance: bool,
-        embedding
+        embedding,
+        vector_search_only: bool = False
     ):
         if k < max_sources:
             raise ValueError("k should be greater than max_sources")
         tokens = 0
         answer = Answer(query, question_embedding=embedding)
+
         if embedding is not None:
             answer.question_embedding = embedding
             answer.from_embed = True
@@ -403,38 +406,65 @@ class Docs:
             ):
                 yield answer
             tokens += cb.total_tokens
-        context_str, citations = answer.context, answer.contexts
+        context_str, references_info = answer.context, answer.contexts
+
         bib = dict()
         passages = dict()
+
         if len(context_str) < 10:
             answer_text = (
                 "I cannot answer this question due to insufficient information."
             )
-        else:
+            formatted_answer = f"Question: {query}\n\n{answer_text}\n"
+            answer.formatted_answer = formatted_answer  # polished answer
+        elif not vector_search_only:
             with get_openai_callback() as cb:
                 answer_text = self.qa_chain.run(
                     question=query, context_str=context_str, length=length_prompt
                 )
                 tokens += cb.total_tokens
-        # it still happens lol
-        if "(Foo2012)" in answer_text:
-            answer_text = answer_text.replace("(Foo2012)", "")
-        for key, citation, summary, text in citations:
-            # do check for whole key (so we don't catch Callahan2019a with Callahan2019)
-            skey = key.split(" ")[0]
-            if skey + " " in answer_text or skey + ")" or skey + "," in answer_text:
-                bib[skey] = citation
-                passages[key] = text
-        bib_str = "\n\n".join(
-            [f"{i+1}. ({k}): {c}" for i, (k, c) in enumerate(bib.items())]
-        )
-        formatted_answer = f"Question: {query}\n\n{answer_text}\n"
-        if len(bib) > 0:
-            formatted_answer += f"\nReferences\n\n{bib_str}\n"
-        formatted_answer += f"\nTokens Used: {tokens} Cost: ${tokens/1000 * 0.002:.2f}"
-        answer.answer = answer_text
-        answer.formatted_answer = formatted_answer
-        answer.references = bib_str
-        answer.passages = passages
-        answer.tokens = tokens
+
+            # it still happens lol
+            if "(Foo2012)" in answer_text:
+                answer_text = answer_text.replace("(Foo2012)", "")
+
+            for key, citation, summary, text in references_info.values():
+                # do check for whole key (so we don't catch Callahan2019a with Callahan2019)
+                skey = key.split(" ")[0]
+                if skey + " " in answer_text or skey + ")" or skey + "," in answer_text:
+                    bib[skey] = citation
+                    passages[key] = text
+
+                bib_str = "\n\n".join(
+                    [f"{i+1}. ({k}): {c}" for i, (k, c) in enumerate(bib.items())]
+                )
+                formatted_answer = f"Question: {query}\n\n{answer_text}\n"
+                if len(bib) > 0:
+                    formatted_answer += f"\nReferences\n\n{bib_str}\n"
+
+                answer.answer = answer_text  # LLM answer from context strings
+                answer.formatted_answer = formatted_answer  # polished answer
+                answer.references = bib_str  # string for bibliography
+                answer.passages = passages  # text chunks chosen by LLM for answer
+                answer.tokens = tokens   # Number of tokens to answer question
+
         yield answer
+
+    def vector_search(self, answer, _k, marginal_relevance=True):
+        # want to work through indices but less k
+        if marginal_relevance:
+            if not answer.from_embed:
+                docs = self._faiss_index.max_marginal_relevance_search(
+                    answer.question, k=_k, fetch_k=5 * _k
+                )
+            else:
+                docs = self._faiss_index.max_marginal_relevance_search_by_vector(
+                    answer.question_embedding, k=_k, fetch_k=5 * _k
+                )
+        else:
+            docs = self._faiss_index.similarity_search(
+                answer.question, k=_k, fetch_k=5 * _k
+            )
+
+        return docs
+
