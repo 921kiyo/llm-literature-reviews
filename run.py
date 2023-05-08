@@ -11,8 +11,8 @@ import arxiv
 
 load_dotenv()
 
-
-from backend.src.question_answer_pipeline.src.utils import qa_abstracts, qa_pdf, parse_arxiv_json
+from backend.src.question_answer_pipeline.src.utils import qa_abstracts, qa_pdf, \
+    parse_arxiv_json, download_pdfs_from_arxiv
 
 if __name__ == '__main__':
     import argparse
@@ -37,9 +37,9 @@ if __name__ == '__main__':
         sort_order=arxiv.SortOrder.Descending
     ).results()
 
-    output = []
+    outputs = []
     for result in arxiv_results:
-        output.append({
+        outputs.append({
             'published': str(result.published),
             "entry_id": result.entry_id,
             'summary': result.summary,
@@ -49,35 +49,32 @@ if __name__ == '__main__':
         })
 
     # parse the arxiv results
-    parsed_arxiv_results = parse_arxiv_json(output)
+    parsed_arxiv_results = parse_arxiv_json(outputs)
+    for key in parsed_arxiv_results:
+        print(f'Raw results: {key}')
+        print(parsed_arxiv_results[key]['summary'])
     # dict(url=dict(summary: summary, citation: MLA formatted citation, key: author, year))
 
     # get nearest neigbors
-    print('-'*10)
+    print('-' * 10)
     print('Grabbing nearest neighbors from abstracts')
     # nearest_neighbors = dict(url=(key, citation, LLM summary related to question, original_abstract))
-    nearest_neighbors, question_embeddings = qa_abstracts(question=args.question, k=5, parsed_arxiv_results=parsed_arxiv_results)
+    nearest_neighbors, question_embeddings = qa_abstracts(question=args.question, k=5,
+                                                          parsed_arxiv_results=parsed_arxiv_results)
 
     if not nearest_neighbors:
         print('Cannot answer your question.')
     else:
         print(f'Nearest Neighbors: {list(nearest_neighbors.keys())}')
         print('\n', '-' * 10)
-        # download nearest neighbor pdfs
-        FILE_DIRECTORY = os.path.join(ROOT_DIRECTORY, 'pdfs')
-        os.makedirs(FILE_DIRECTORY, exist_ok=True)
-        for result in output:
-            if result['entry_id'] in nearest_neighbors:
-                filename = result['entry_id'].split('/')[-1]+'.pdf'
-                filepath = os.path.join(FILE_DIRECTORY, filename)
-                if not os.path.exists(filepath):
-                    print(f"downloading: {filename}")
-                    result['download_handle'](FILE_DIRECTORY, filename=filename)
+        relevant_arxiv_results = [output for output in outputs if output['entry_id'] in nearest_neighbors]
+        download_pdfs_from_arxiv(relevant_arxiv_results=relevant_arxiv_results)
 
         # do question and answer on the pdfs
         print('\n', '-' * 10)
         print('Getting Answer from PDFs')
         relevant_documents = {url: parsed_arxiv_results[url] for url in nearest_neighbors}
-
+        print(f'{list(relevant_documents.keys())}')
         # relevant_pdfs = dict(url= (key, citation, llm_summary, text_chunk_from_pdf))
-        relevant_pdfs = qa_pdf(question=args.question, k=20, parsed_arxiv_results=relevant_documents, question_embeddings=question_embeddings)
+        relevant_pdfs = qa_pdf(question=args.question, k=20, parsed_arxiv_results=relevant_documents,
+                               question_embeddings=question_embeddings)

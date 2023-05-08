@@ -43,6 +43,7 @@ class Answer:
     tokens: int = 0
     question_embedding: List[float] = None
     from_embed: bool = False
+
     def __post_init__(self):
         """Initialize the answer."""
         if self.contexts is None:
@@ -59,12 +60,12 @@ class Docs:
     """A collection of documents to be used for answering questions."""
 
     def __init__(
-        self,
-        chunk_size_limit: int = 3000,
-        llm: Optional[Union[LLM, str]] = None,
-        summary_llm: Optional[Union[LLM, str]] = None,
-        name: str = "default",
-        index_path: Optional[Path] = None,
+            self,
+            chunk_size_limit: int = 3000,
+            llm: Optional[Union[LLM, str]] = None,
+            summary_llm: Optional[Union[LLM, str]] = None,
+            name: str = "default",
+            index_path: Optional[Path] = None,
     ) -> None:
         """Initialize the collection of documents.
 
@@ -88,9 +89,9 @@ class Docs:
         self.name = name
 
     def update_llm(
-        self,
-        llm: Optional[Union[LLM, str]] = None,
-        summary_llm: Optional[Union[LLM, str]] = None,
+            self,
+            llm: Optional[Union[LLM, str]] = None,
+            summary_llm: Optional[Union[LLM, str]] = None,
     ) -> None:
         """Update the LLM for answering questions."""
         if llm is None:
@@ -109,12 +110,12 @@ class Docs:
         self.cite_chain = make_chain(prompt=citation_prompt, llm=summary_llm)
 
     def add(
-        self,
-        path: str,
-        citation: Optional[str] = None,
-        key: Optional[str] = None,
-        disable_check: bool = False,
-        chunk_chars: Optional[int] = 3000,
+            self,
+            path: str,
+            citation: Optional[str] = None,
+            key: Optional[str] = None,
+            disable_check: bool = False,
+            chunk_chars: Optional[int] = 3000,
     ) -> None:
         """Add a document to the collection."""
 
@@ -159,7 +160,7 @@ class Docs:
 
         # loose check to see if document was loaded
         if len("".join(texts)) < 10 or (
-            not disable_check and not maybe_is_text("".join(texts))
+                not disable_check and not maybe_is_text("".join(texts))
         ):
             raise ValueError(
                 f"This does not look like a text document: {path}. Path disable_check to ignore this error."
@@ -200,7 +201,7 @@ class Docs:
         if key != metadatas[0]['dockey']:
             for j in range(len(metadatas)):
                 metadatas[j]['dockey'] = key
-        
+
         self.docs[path] = dict(texts=texts, metadata=metadatas, key=key)
 
         if self._faiss_index is not None:
@@ -274,12 +275,12 @@ class Docs:
             )
 
     def get_evidence(
-        self,
-        answer: Answer,
-        k: int = 3,
-        max_sources: int = 5,
-        marginal_relevance: bool = True,
-        key_filter: Optional[List[str]] = None,
+            self,
+            answer: Answer,
+            k: int = 3,
+            max_sources: int = 5,
+            marginal_relevance: bool = True,
+            key_filter: Optional[List[str]] = None,
     ) -> str:
         if self._faiss_index is None:
             self._build_faiss_index()
@@ -292,19 +293,18 @@ class Docs:
 
         docs = self.vector_search(answer, _k, marginal_relevance=marginal_relevance)
 
+        # get summaries
+        llm_summaries = asyncio.run(async_get_summaries(docs, answer.question))
+
         # Grab the information from the nearest neigbors metadata
-        for doc in docs:
+        for i, doc in enumerate(docs):
             if key_filter is not None and doc.metadata["dockey"] not in key_filter:
                 continue
 
             c = (
                 doc.metadata["key"],
                 doc.metadata["citation"],
-                self.summary_chain.run(
-                    question=answer.question,
-                    context_str=doc.page_content,
-                    citation=doc.metadata["citation"],
-                ),
+                llm_summaries[i],
                 doc.page_content
             )
 
@@ -341,12 +341,12 @@ class Docs:
         return queries
 
     def query_gen(
-        self,
-        query: str,
-        k: int = 10,
-        max_sources: int = 5,
-        length_prompt: str = "about 100 words",
-        marginal_relevance: bool = True,
+            self,
+            query: str,
+            k: int = 10,
+            max_sources: int = 5,
+            length_prompt: str = "about 100 words",
+            marginal_relevance: bool = True,
     ):
         yield from self._query(
             query,
@@ -357,36 +357,36 @@ class Docs:
         )
 
     def query(
-        self,
-        query: str,
-        k: int = 10,
-        max_sources: int = 5,
-        length_prompt: str = "about 100 words",
-        marginal_relevance: bool = True,
-        embedding: Optional[List[float]] = None,
-        vector_search_only: bool = False
+            self,
+            query: str,
+            k: int = 10,
+            max_sources: int = 5,
+            length_prompt: str = "about 100 words",
+            marginal_relevance: bool = True,
+            embedding: Optional[List[float]] = None,
+            vector_search_only: bool = False
     ):
         for answer in self._query(
-            query,
-            k=k,
-            max_sources=max_sources,
-            length_prompt=length_prompt,
-            marginal_relevance=marginal_relevance,
-            embedding=embedding,
-            vector_search_only=vector_search_only
+                query,
+                k=k,
+                max_sources=max_sources,
+                length_prompt=length_prompt,
+                marginal_relevance=marginal_relevance,
+                embedding=embedding,
+                vector_search_only=vector_search_only
         ):
             pass
         return answer
 
     def _query(
-        self,
-        query: str,
-        k: int,
-        max_sources: int,
-        length_prompt: str,
-        marginal_relevance: bool,
-        embedding,
-        vector_search_only: bool = False
+            self,
+            query: str,
+            k: int,
+            max_sources: int,
+            length_prompt: str,
+            marginal_relevance: bool,
+            embedding,
+            vector_search_only: bool = False
     ):
         if k < max_sources:
             raise ValueError("k should be greater than max_sources")
@@ -399,10 +399,10 @@ class Docs:
 
         with get_openai_callback() as cb:
             for answer in self.get_evidence(
-                answer,
-                k=k,
-                max_sources=max_sources,
-                marginal_relevance=marginal_relevance,
+                    answer,
+                    k=k,
+                    max_sources=max_sources,
+                    marginal_relevance=marginal_relevance,
             ):
                 yield answer
             tokens += cb.total_tokens
@@ -436,7 +436,7 @@ class Docs:
                     passages[key] = text
 
                 bib_str = "\n\n".join(
-                    [f"{i+1}. ({k}): {c}" for i, (k, c) in enumerate(bib.items())]
+                    [f"{i + 1}. ({k}): {c}" for i, (k, c) in enumerate(bib.items())]
                 )
                 formatted_answer = f"Question: {query}\n\n{answer_text}\n"
                 if len(bib) > 0:
@@ -446,7 +446,7 @@ class Docs:
                 answer.formatted_answer = formatted_answer  # polished answer
                 answer.references = bib_str  # string for bibliography
                 answer.passages = passages  # text chunks chosen by LLM for answer
-                answer.tokens = tokens   # Number of tokens to answer question
+                answer.tokens = tokens  # Number of tokens to answer question
 
         yield answer
 
@@ -468,3 +468,25 @@ class Docs:
 
         return docs
 
+
+import asyncio
+
+
+async def async_openAI_call(doc, question):
+    llm = ChatOpenAI(temperature=0, model="gpt-3.5-turbo")
+    summary_chain = make_chain(prompt=summary_prompt, llm=llm)
+    summary = summary_chain.run(
+        question=question,
+        context_str=doc.page_content,
+        citation=doc.metadata["citation"],
+    )
+
+    return summary
+
+
+async def async_get_summaries(docs, question):
+    coroutines = [async_openAI_call(doc, question) for doc in docs]
+
+    summaries = await asyncio.gather(*coroutines)
+
+    return summaries

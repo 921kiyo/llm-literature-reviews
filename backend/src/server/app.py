@@ -3,7 +3,7 @@ from pydantic import BaseModel
 from fastapi.middleware.cors import CORSMiddleware
 import arxiv
 
-from question_answer_pipeline.src.utils import qa_abstracts, qa_pdf, parse_arxiv_json
+from question_answer_pipeline.src.utils import qa_abstracts, qa_pdf, parse_arxiv_json, download_pdfs_from_arxiv
 
 app = FastAPI()
 
@@ -59,16 +59,19 @@ async def search_paper(message: SearchItem):
     search_results_list = parse_search_results(search_results)
 
     parsed_arxiv_results = parse_arxiv_json(search_results_list)
-    nearest_neighbors, question_embeddings = qa_abstracts(question=message.search_term,
-                                                          k=5,
+    nearest_neighbors, question_embeddings = qa_abstracts(question=message.search_term, k=5,
                                                           parsed_arxiv_results=parsed_arxiv_results)
 
-    relevant_documents = {url: parsed_arxiv_results[url] for url in nearest_neighbors}
-
-    relevant_pdfs = qa_pdf(question=message.search_term,
-                           k=20,
-                           parsed_arxiv_results=relevant_documents,
-                           question_embeddings=question_embeddings)
+    if not nearest_neighbors:
+        print('Cannot answer your question.')
+    else:
+        print(f'Nearest Neighbors: {list(nearest_neighbors.keys())}')
+        print('Getting Answer from PDFs')
+        relevant_documents = {url: parsed_arxiv_results[url] for url in nearest_neighbors}
+        print(f'{list(relevant_documents.keys())}')
+        # relevant_pdfs = dict(url= (key, citation, llm_summary, text_chunk_from_pdf))
+        relevant_pdfs = qa_pdf(question=message.search_term, k=20, parsed_arxiv_results=relevant_documents,
+                               question_embeddings=question_embeddings)
 
 
     return 0

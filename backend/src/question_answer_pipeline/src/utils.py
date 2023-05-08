@@ -315,6 +315,18 @@ def make_query(docs, queries, question_embeddings, k=5, vector_search_only=False
     return answers
 
 
+def download_pdfs_from_arxiv(relevant_arxiv_results):
+    """
+    :param: relevant_arxiv_results: arxiv results object from nearest_neighbor search
+    :return:
+    """
+    os.makedirs(FILE_DIRECTORY, exist_ok=True)
+    for result in relevant_arxiv_results:
+        filename = result['entry_id'].split('/')[-1] + '.pdf'
+        filepath = os.path.join(FILE_DIRECTORY, filename)
+        if not os.path.exists(filepath):
+            print(f"downloading: {filename}")
+            result['download_handle'](FILE_DIRECTORY, filename=filename)
 #####################################
 # Possibly not needed
 #####################################
