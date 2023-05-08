@@ -3,6 +3,7 @@ import string
 from tqdm import tqdm
 
 
+
 def maybe_is_text(s, thresh=2.5):
     if len(s) == 0:
         return False

@@ -17,3 +17,21 @@
 export MODAL=false
 export OPENAI_API_KEY=sk-XXX
 ```
+
+## The Docs Class
+### Document Metadata
+metadata is used to identify embeddings in the database.
+Constructed as:
+```
+dict(        
+    citation=citation for document,
+    dockey=document identifier,
+    key=identifier for specific chunk (i.e. page in document")
+)
+example:
+    pdf_metadata = dict(
+                        citation= 'MLA citation',
+                        dockey= 'Author, year',
+                        key= 'Author, year. - Page 1'
+                    )
+```

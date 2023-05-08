@@ -7,6 +7,8 @@ TextSplitter = TokenTextSplitter
 
 def parse_pdf(path, citation, key, chunk_chars=2000, overlap=50, peak=False):
     import pypdf
+    unique_id = path.split('/')[-1][:-4]
+    print(f'PDF reading file with unique_id: {unique_id}')
 
     pdfFileObj = open(path, "rb")
     pdfReader = pypdf.PdfReader(pdfFileObj)
@@ -26,12 +28,13 @@ def parse_pdf(path, citation, key, chunk_chars=2000, overlap=50, peak=False):
             pg = "-".join([pages[0], pages[-1]])
             metadatas.append(
                 dict(
+                    unique_id=unique_id,
                     citation=citation,
                     dockey=key,
                     key=f"{key} pages {pg}",
                 )
             )
-            split = split[chunk_chars - overlap :]
+            split = split[chunk_chars - overlap:]
             pages = [str(i + 1)]
             if peak:
                 return splits[0], None
@@ -40,6 +43,7 @@ def parse_pdf(path, citation, key, chunk_chars=2000, overlap=50, peak=False):
         pg = "-".join([pages[0], pages[-1]])
         metadatas.append(
             dict(
+                unique_id=unique_id,
                 citation=citation,
                 dockey=key,
                 key=f"{key} pages {pg}",
