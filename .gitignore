@@ -9,6 +9,8 @@ abstract_embeddings/**
 docs
 index/**
 temp/**
+embeddings/**
+pdfs/**
 
 frontend/node_modules/
 frontend/.next/

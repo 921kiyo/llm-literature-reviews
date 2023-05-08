@@ -3,7 +3,7 @@ from pydantic import BaseModel
 from fastapi.middleware.cors import CORSMiddleware
 import arxiv
 
-from question_answer_pipeline.src.utils import qa_abstracts, qa_pdf
+from question_answer_pipeline.src.utils import qa_abstracts, qa_pdf, parse_arxiv_json
 
 app = FastAPI()
 
@@ -25,7 +25,12 @@ class SearchItem(BaseModel):
     search_term: str
 
 def parse_search_results(results):
+    # TODO this is so hacky, so will fix this later
+    import os
+    pdf_dir = os.path.join(os.getenv("ROOT_DIRECTORY"), "pdfs")
     output = []
+    # TODO: try webscraping instead as it might be faster
+    # TODO: Make this step parallel
     for result in results:
         output.append({
             'published': str(result.published),
@@ -34,6 +39,9 @@ def parse_search_results(results):
             'title': result.title,
             "authors": [{'name': author.name} for author in result.authors]
         })
+        filename = result.entry_id.split('/')[-1]+'.pdf'
+        filepath = os.path.join(pdf_dir, filename)
+        result.download_pdf(dirpath=pdf_dir, filename=filepath)
     return output
 
 @app.get("/")
@@ -49,13 +57,19 @@ async def search_paper(message: SearchItem):
         sort_order = arxiv.SortOrder.Descending
     ).results()
     search_results_list = parse_search_results(search_results)
-    qa_abstracts(message.search_term, search_results_list)
 
-    # TODO: try webscraping instead as it might be faster
-    # TODO: Make this step parallel
-    for result in search_results:
-        result.download_pdf()
-    qa_pdf(question=message.search_term, use_modal=False)
+    parsed_arxiv_results = parse_arxiv_json(search_results_list)
+    nearest_neighbors, question_embeddings = qa_abstracts(question=message.search_term,
+                                                          k=5,
+                                                          parsed_arxiv_results=parsed_arxiv_results)
+
+    relevant_documents = {url: parsed_arxiv_results[url] for url in nearest_neighbors}
+
+    relevant_pdfs = qa_pdf(question=message.search_term,
+                           k=20,
+                           parsed_arxiv_results=relevant_documents,
+                           question_embeddings=question_embeddings)
+
 
     return 0
 
