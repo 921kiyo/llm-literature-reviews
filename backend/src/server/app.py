@@ -84,7 +84,7 @@ async def search_paper(message: SearchItem):
         relevant_documents = {url: parsed_arxiv_results[url] for url in nearest_neighbors}
         print(f'{list(relevant_documents.keys())}')
         # relevant_pdfs = dict(url= (key, citation, llm_summary, text_chunk_from_pdf))
-        relevant_pdfs = qa_pdf(question=message.search_term, k=20, parsed_arxiv_results=relevant_documents,
+        relevant_pdfs, pdf_answers = qa_pdf(question=message.search_term, k=20, parsed_arxiv_results=relevant_documents,
                                question_embeddings=question_embeddings)
 
     # relevant_pdfs, answers = qa_pdf(question=message.search_term,
