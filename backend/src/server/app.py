@@ -62,6 +62,7 @@ async def search_paper(message: SearchItem):
     nearest_neighbors, question_embeddings, asb_answers = qa_abstracts(question=message.search_term,
                                                           k=5,
                                                           parsed_arxiv_results=parsed_arxiv_results)
+    # TODO: merge parsed_arxiv_results and asb_answers
 
     # relevant_documents = {url: parsed_arxiv_results[url] for url in nearest_neighbors}
 

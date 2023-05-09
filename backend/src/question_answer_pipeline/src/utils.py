@@ -130,8 +130,8 @@ def parse_arxiv_json(arxiv_results):
 
         summary = arxiv_res['summary']
 
+        # url_parsed_json[url] = {'summary': summary, 'citation': citation, 'key': key, "title": title, "authors": authors, "journal": source }
         url_parsed_json[url] = {'summary': summary, 'citation': citation, 'key': key}
-
     return url_parsed_json
 
 
@@ -205,7 +205,7 @@ def create_docs(relevant_documents, dir):
                                  text_embeddings=file_embeddings,
                                  metadatas=metadata)
 
-    print(f'added {no_files + 1} files to docs')
+        print(f'added {no_files + 1} files to docs')
 
     return docs
 
@@ -352,7 +352,7 @@ def get_citations(list_of_filenames):
         "Citation:"
         "If a citation cannot be determined from the text return None."
     )
-    llm = ChatOpenAI(temperature=0.1, max_tokens=512, model_name='gpt-3.5-turbo')
+    llm = ChatOpenAI(temperature=0, max_tokens=512, model_name='gpt-3.5-turbo')
 
     chat_prompt = ChatPromptTemplate.from_messages([system_message, citation_prompt])
     cite_chain = LLMChain(prompt=chat_prompt, llm=llm)
