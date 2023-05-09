@@ -1,6 +1,7 @@
 import modal
 from modal import Image, SharedVolume, Stub
 import os
+from tqdm import tqdm
 
 MODAL_DEPLOYMENT = 'PubFind'
 
@@ -83,21 +84,90 @@ def get_question_embedding(queries, model_root):
     return question_embeddings
 
 
-def embed_file_chunks(splits, use_modal='false'):
+def embed_document(doc_splits, use_modal='false'):
+    """
+
+    :param doc_splits:
+    :param use_modal:
+    :return:
+    """
+    from functools import partial
+
+    doc_embeddings = []
+
+    if use_modal.lower() == 'true':
+        print('Using MODAL')
+        f = modal.Function.lookup(MODAL_DEPLOYMENT, "get_splits_embeddings")
+        # f = partial(f, use_modal='true')
+        iterable_ = [{'splits': splits, 'use_modal': use_modal} for splits in doc_splits]
+
+        for file_embeddings, num_tokens in f.starmap(iterable_):
+            doc_embeddings.append({'file_embeddings': file_embeddings, 'num_tokens': num_tokens})
+    else:
+        print('Using Local Machine')
+        # instantiate model only once when running on local machine
+        from InstructorEmbedding import INSTRUCTOR
+        from transformers import AutoTokenizer
+        import torch.cuda
+        model_root = 'embedding_models'
+        print(f"GPU access is {'available' if torch.cuda.is_available() else 'Not Available'}")
+        model = INSTRUCTOR('hkunlp/instructor-xl', cache_folder=model_root)
+        tokenizer = AutoTokenizer.from_pretrained('hkunlp/instructor-xl',
+                                                  cache_dir=model_root)  # initialize the INSTRUCTOR tokenizer
+        # process items
+        for splits in tqdm(doc_splits):
+            file_embeddings, num_tokens = get_splits_embeddings(splits, use_modal='false', model=model, tokenizer=tokenizer)
+            doc_embeddings.append({'file_embeddings': file_embeddings, 'num_tokens': num_tokens})
+
+    return doc_embeddings
+
+
+@stub.function(
+    image=PubFind_image,
+    shared_volumes={CACHE_PATH: volume}
+)
+def get_splits_embeddings(splits, use_modal='false', model=None, tokenizer=None):
+
+    """
+    Wrap in modal function so that i can be mapped
+    :param splits:
+    :param use_modal:
+    :param model:
+    :param tokenizer:
+    :return:
+    """
+
+    file_embeddings, num_tokens = embed_file_chunks(splits, use_modal=use_modal, model=model, tokenizer=tokenizer)
+
+    return file_embeddings, num_tokens
+
+
+def embed_file_chunks(splits, use_modal='false', model=None, tokenizer=None):
     """
     Wrapper that will embed questions remotely or locally
     use_modal: Str (comes from env variable)
     """
+    from functools import partial
+
+    file_embeddings = []
+    num_tokens = []
 
     if use_modal.lower() == 'true':
         print('Using MODAL')
         model_root = CACHE_PATH
         f = modal.Function.lookup(MODAL_DEPLOYMENT, "get_file_chunks_embeds")
-        file_embeddings, num_tokens = f.call(splits, model_root)
+        f = partial(f, model_root=model_root)
+
+        for embeds, tokens in f.map(splits=splits):
+            num_tokens.append(tokens)
+            file_embeddings.append(embeds)
     else:
         print('Using Local Machine')
         model_root = 'embedding_models'
-        file_embeddings, num_tokens = get_file_chunks_embeds(splits, model_root)
+        for split in tqdm(splits, mininterval=2):
+            embeds, tokens = get_file_chunks_embeds(split, model_root, model=model, tokenizer=tokenizer)
+            num_tokens.append(tokens)
+            file_embeddings.append(embeds)
 
     return file_embeddings, num_tokens
 
@@ -106,38 +176,29 @@ def embed_file_chunks(splits, use_modal='false'):
                image=PubFind_image,
                shared_volumes={CACHE_PATH: volume}
                )
-def get_file_chunks_embeds(splits, model_root):
-    from InstructorEmbedding import INSTRUCTOR
-    from transformers import AutoTokenizer
-    import torch.cuda
-    from tqdm import tqdm
+def get_file_chunks_embeds(split, model_root, model=None, tokenizer=None):
+    if model is None:
+        from InstructorEmbedding import INSTRUCTOR
+        from transformers import AutoTokenizer
+        import torch.cuda
 
-    print(f"GPU access is {'available' if torch.cuda.is_available() else 'Not Available'}")
-    model = INSTRUCTOR('hkunlp/instructor-xl', cache_folder=model_root)
-    model_max_seq_length = model.max_seq_length
-
-    tokenizer = AutoTokenizer.from_pretrained('hkunlp/instructor-xl',
-                                              cache_dir=model_root)  # initialize the INSTRUCTOR tokenizer
-
-    # collect embeddings for all documents
-    file_embeddings = []
-    num_tokens = []
-
+        print(f"GPU access is {'available' if torch.cuda.is_available() else 'Not Available'}")
+        model = INSTRUCTOR('hkunlp/instructor-xl', cache_folder=model_root)
+        tokenizer = AutoTokenizer.from_pretrained('hkunlp/instructor-xl',
+                                                  cache_dir=model_root)  # initialize the INSTRUCTOR tokenizer
     # encode each chunk
-    for split in tqdm(splits, mininterval=2):
-        split = 'Represent the scientific paragraph for retrieval; Input: ' + split
+    model_max_seq_length = model.max_seq_length
+    split = 'Represent the scientific paragraph for retrieval; Input: ' + split
 
-        embeds = model.encode(split)
-        tokenized_text = tokenizer(split)['input_ids']
-        tokenized_length = len(tokenized_text)
+    embeds = model.encode(split)
+    tokenized_text = tokenizer(split)['input_ids']
+    num_tokens = len(tokenized_text)
 
-        if tokenized_length > model_max_seq_length:
-            print(f'TRUNCATING SPLIT')
+    if num_tokens > model_max_seq_length:
+        print(f'TRUNCATING SPLIT')
+        # collect embeddings for all documents
 
-        num_tokens.append(tokenized_length)
-        file_embeddings.append(embeds)
-
-    return file_embeddings, num_tokens
+    return embeds, num_tokens
 
 
 # TODO: This doesnt add them correctly

@@ -6,7 +6,7 @@ from tqdm import tqdm
 import re
 from ..qa_utils import readers, Docs
 import pickle
-from .embedding import embed_file_chunks, embed_questions
+from .embedding import embed_file_chunks, embed_questions, embed_document
 from langchain.chains import LLMChain
 from langchain.prompts.chat import HumanMessagePromptTemplate, ChatPromptTemplate, SystemMessage
 from langchain.chat_models import ChatOpenAI
@@ -150,13 +150,20 @@ def embed_abstracts(parsed_arxiv_results):
 
     to_process = {k: v for k, v in parsed_arxiv_results.items() if k.split('/')[-1] in new_embeddings}
 
-    for entry_id, doc_info in tqdm(to_process.items()):
+    doc_splits = []
+    for entry_id, doc_info in to_process.items():
+        doc_splits.append([doc_info['summary']])
+
+    if doc_splits:
+        doc_embeddings = embed_document(doc_splits, use_modal=os.environ['MODAL'])
+
+    for i, (entry_id, doc_info) in enumerate(tqdm(to_process.items())):
         print(f'Processing: {entry_id}')
 
         unique_id = entry_id
         citation = doc_info['citation']
         key = doc_info['key']
-        summary = [doc_info['summary']]
+        splits = doc_splits[i]
         metadata = [dict(
             unique_id=unique_id,
             citation=citation,
@@ -164,10 +171,10 @@ def embed_abstracts(parsed_arxiv_results):
             key=f'abstract_{key}'
         )]
 
-        file_embeddings, num_tokens = embed_file_chunks(summary, use_modal=os.environ['MODAL'])
+        file_embeddings, num_tokens = doc_embeddings[i]['file_embeddings'], doc_embeddings[i]['num_tokens']
 
         # save text chunks, file embeddings, metadatas, and num_tokens for each
-        save_dict = [summary, file_embeddings, metadata, num_tokens]
+        save_dict = [splits, file_embeddings, metadata, num_tokens]
 
         path = os.path.join(ABSTRACTS_EMB_DIR, entry_id.split('/')[-1] + '.pkl')
         print(f'Saving abstract embeddings to path: {path}')
@@ -244,8 +251,9 @@ def embed_pdf_files(parsed_arxiv_results):
 
     to_process = {k: v for k, v in parsed_arxiv_results.items() if k.split('/')[-1] in new_embeddings}
 
-    # read pdf, embed chunks
     parse_pdf = readers.parse_pdf
+    doc_splits = []
+    doc_metadatas = []
     for entry_id, doc_info in tqdm(to_process.items()):
         # get file path for file f
         f = entry_id.split('/')[-1] + '.pdf'
@@ -259,11 +267,20 @@ def embed_pdf_files(parsed_arxiv_results):
         # get texts (splits) and metadata (citation, key, key_with_page)
 
         splits, metadatas = parse_pdf(f_path, key=key, citation=citation, chunk_chars=1100, overlap=100)
+        doc_splits.append(splits)
+        doc_metadatas.append(metadatas)
 
-        file_embeddings, num_tokens = embed_file_chunks(splits, use_modal=os.environ['MODAL'])
+    if doc_splits:
+        doc_embeddings = embed_document(doc_splits, use_modal=os.environ['MODAL'])
+
+    # read pdf, embed chunks
+    for i, (entry_id, doc_info) in enumerate(tqdm(to_process.items())):
+        print(f'Processing: {entry_id}')
+
+        file_embeddings, num_tokens = doc_embeddings[i]['file_embeddings'], doc_embeddings[i]['num_tokens']
 
         # save text chunks, file embeddings, metadatas, and num_tokens for each
-        save_dict = [splits, file_embeddings, metadatas, num_tokens]
+        save_dict = [doc_splits[i], file_embeddings, doc_metadatas[i], num_tokens]
 
         path = os.path.join(PDF_EMB_DIR, f[:-3] + 'pkl')
 
