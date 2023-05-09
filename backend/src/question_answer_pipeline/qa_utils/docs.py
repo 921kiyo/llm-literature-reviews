@@ -37,7 +37,6 @@ class Answer:
     answer: str = ""
     context: str = ""  # shows which documents were relevant to answer
     contexts: Dict[str, Tuple] = None  # dict(url= (key, citation, llm_summary, chunked_text))
-    references2: List[Dict] = None
     references: str = ""  # string for references
     formatted_answer: str = ""  # formatted answer to question with bibliography
     passages: Dict[str, str] = None

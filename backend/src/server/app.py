@@ -44,6 +44,18 @@ def parse_search_results(results):
         result.download_pdf(dirpath=pdf_dir, filename=filepath)
     return output
 
+def get_references(parsed_arxiv_results, contexts):
+    outputs = []
+    for url in contexts.keys():
+        output = {}
+        output["title"] = parsed_arxiv_results[url]["title"]
+        output["authors"] = parsed_arxiv_results[url]["authors"]
+        output["journal"] = parsed_arxiv_results[url]["journal"]
+        output["llm_summary"] = contexts[url][2]
+        outputs.append(output)
+    return outputs
+
+
 @app.get("/")
 async def root():
     return {"message": "Hello World"}
@@ -62,7 +74,7 @@ async def search_paper(message: SearchItem):
     nearest_neighbors, question_embeddings, asb_answers = qa_abstracts(question=message.search_term,
                                                           k=5,
                                                           parsed_arxiv_results=parsed_arxiv_results)
-    # TODO: merge parsed_arxiv_results and asb_answers
+    clean_ref = get_references(parsed_arxiv_results, asb_answers[0].contexts)
 
     # relevant_documents = {url: parsed_arxiv_results[url] for url in nearest_neighbors}
 
@@ -75,6 +87,6 @@ async def search_paper(message: SearchItem):
             "answer": asb_answers[0].answer,
             "context": asb_answers[0].context,
             "contexts": asb_answers[0].contexts,
-            "references": asb_answers[0].references}
+            "references": clean_ref}
 
 

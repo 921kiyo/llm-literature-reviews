@@ -41,7 +41,6 @@ const Home: NextPage = () => {
       throw new Error(response.statusText);
     }
     const data = await response.json();
-    console.log("data: ", data);
     setAnswer(data.answer);
     setReferences(data.references);
     setLoading(false);
@@ -134,16 +133,21 @@ const Home: NextPage = () => {
           {/* <div className="space-y-8 flex flex-col items-center justify-center max-w-xl mx-auto">
             {references ? `References: ${references}` : null}
           </div> */}
-          {/* <div className="space-y-8 flex flex-col items-center justify-center max-w-xl mx-auto">
+          <div className="space-y-8 flex flex-col items-center justify-center max-w-xl mx-auto">
             {references && references.length > 0 ? (
               <>
                 <div>References:</div>
                 {references.map((reference, index) => (
-                  <div key={index}>{reference}</div>
+                  <div>
+                    <div key={index}>{reference.title}</div>
+                    <div key={index}>{reference.authors}</div>
+                    <div key={index}>{reference.journal}</div>
+                    <div key={index}>{reference.llm_summary}</div>
+                  </div>
                 ))}
               </>
             ) : null}
-          </div> */}
+          </div>
         </div>
       </main>
       <Footer />

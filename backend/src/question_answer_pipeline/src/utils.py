@@ -130,8 +130,7 @@ def parse_arxiv_json(arxiv_results):
 
         summary = arxiv_res['summary']
 
-        # url_parsed_json[url] = {'summary': summary, 'citation': citation, 'key': key, "title": title, "authors": authors, "journal": source }
-        url_parsed_json[url] = {'summary': summary, 'citation': citation, 'key': key}
+        url_parsed_json[url] = {'summary': summary, 'citation': citation, 'key': key, "title": title, "authors": authors, "journal": source}
     return url_parsed_json
 
 
