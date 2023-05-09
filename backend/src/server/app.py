@@ -6,9 +6,6 @@ from dotenv import load_dotenv
 import os
 from tqdm import tqdm
 load_dotenv()
-ROOT_DIRECTORY = os.path.join(os.path.dirname(os.path.dirname(os.path.realpath(__file__))), 'question_answer_pipeline/test')
-os.environ['ROOT_DIRECTORY'] = ROOT_DIRECTORY
-print('RootDirectory: ', ROOT_DIRECTORY)
 
 from question_answer_pipeline.src.utils import qa_abstracts, qa_pdf, parse_arxiv_json
 
