@@ -52,6 +52,7 @@ def get_references(parsed_arxiv_results, contexts):
         output["authors"] = parsed_arxiv_results[url]["authors"]
         output["journal"] = parsed_arxiv_results[url]["journal"]
         output["llm_summary"] = contexts[url][2]
+        output["url"] = url
         outputs.append(output)
     return outputs
 

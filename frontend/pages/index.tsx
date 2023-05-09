@@ -130,19 +130,23 @@ const Home: NextPage = () => {
           <div className="space-y-8 flex flex-col items-center justify-center max-w-xl mx-auto">
             {answer ? `Answer: ${answer}` : null}
           </div>
-          {/* <div className="space-y-8 flex flex-col items-center justify-center max-w-xl mx-auto">
-            {references ? `References: ${references}` : null}
-          </div> */}
           <div className="space-y-8 flex flex-col items-center justify-center max-w-xl mx-auto">
             {references && references.length > 0 ? (
               <>
-                <div>References:</div>
+                <div className="font-bold text-lg text-center">References:</div>
                 {references.map((reference, index) => (
-                  <div>
-                    <div key={index}>{reference.title}</div>
-                    <div key={index}>{reference.authors}</div>
-                    <div key={index}>{reference.journal}</div>
-                    <div key={index}>{reference.llm_summary}</div>
+                  <div key={index} className="space-y-2">
+                    <a
+                      href={reference.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="font-semibold text-blue-600 hover:text-blue-800"
+                    >
+                      {reference.title}
+                    </a>
+                    <div className="italic">{reference.authors}</div>
+                    {/* <div>{reference.journal}</div> */}
+                    <div className="text-gray-700">{reference.llm_summary}</div>
                   </div>
                 ))}
               </>
