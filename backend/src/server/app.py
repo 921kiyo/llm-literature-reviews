@@ -1,10 +1,13 @@
+import os
 from fastapi import FastAPI
 from pydantic import BaseModel
 from fastapi.middleware.cors import CORSMiddleware
 import arxiv
-
+import openai
 from question_answer_pipeline.src.utils import qa_abstracts, qa_pdf, parse_arxiv_json
+from dotenv import load_dotenv
 
+load_dotenv()
 app = FastAPI()
 
 origins = [
@@ -69,7 +72,7 @@ def search_term_refiner(messages) -> list:
             {"role": "user",
             "content": "Questions: {}, \n Answer:".format("What is stable diffusion model?")}
     )
-
+    openai.api_key  = os.getenv('OPENAI_API_KEY')
     completion = openai.ChatCompletion.create(
             model="gpt-3.5-turbo",
             messages=message,
@@ -91,7 +94,7 @@ async def search_paper(message: SearchItem):
     message_list = search_term_refiner(message.search_term)
     #TODO: parallelize the following arxiv api to return the search result at the same time.
     search_results = arxiv.Search(
-        query = message.search_term,
+        query = message_list[0],
         max_results = 2,
         sort_by = arxiv.SortCriterion.Relevance,
         sort_order = arxiv.SortOrder.Descending
