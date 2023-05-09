@@ -92,7 +92,7 @@ async def root():
 @app.post("/search/")
 async def search_paper(message: SearchItem):
     message_list = search_term_refiner(message.search_term)
-    #TODO: parallelize the following arxiv api to return the search result at the same time.
+    #TODO: parallelize the following arxiv api to return the search result at the same time. To Push to the repo
     search_results = arxiv.Search(
         query = message_list[0],
         max_results = 2,
