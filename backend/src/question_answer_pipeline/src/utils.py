@@ -26,7 +26,7 @@ ABSTRACTS_EMB_DIR = os.path.join(ROOT_DIRECTORY, 'abstract_embeddings')
 DOCS_FILE = os.path.join(ROOT_DIRECTORY, 'pdf_docs')
 
 
-def qa_pdf(question, k, parsed_arxiv_results, question_embeddings=None):
+async def qa_pdf(question, k, parsed_arxiv_results, question_embeddings=None):
     """
     qa on pdf documents
     :param question_embeddings: embedded question
@@ -46,7 +46,7 @@ def qa_pdf(question, k, parsed_arxiv_results, question_embeddings=None):
         question_embeddings = embed_questions(queries, use_modal=os.environ['MODAL'])
 
     print('getting answers')
-    answers = make_query(docs, queries, question_embeddings, k=k, vector_search_only=False)
+    answers = await make_query(docs, queries, question_embeddings, k=k, vector_search_only=False)
 
     for answer in answers:
         print('-' * 20)
@@ -56,7 +56,7 @@ def qa_pdf(question, k, parsed_arxiv_results, question_embeddings=None):
     return answer.contexts
 
 
-def qa_abstracts(question, k, parsed_arxiv_results=None):
+async def qa_abstracts(question, k, parsed_arxiv_results=None):
     """
 
     :param parsed_arxiv_results: dict(url=dict(summary: summary, citation: MLA formatted citation, key: author, year))
@@ -74,7 +74,7 @@ def qa_abstracts(question, k, parsed_arxiv_results=None):
     question_embeddings = embed_questions(queries, use_modal=os.environ['MODAL'])
 
     print('getting answers')
-    answers = make_query(docs, queries, question_embeddings, k=k, vector_search_only=False)
+    answers = await make_query(docs, queries, question_embeddings, k=k, vector_search_only=False)
 
     for answer in answers:
         # answer.contexts = dict(url=(key, citation, LLM summary related to question, original_text))
@@ -158,7 +158,7 @@ def embed_abstracts(parsed_arxiv_results):
         doc_embeddings = embed_document(doc_splits, use_modal=os.environ['MODAL'])
 
     for i, (entry_id, doc_info) in enumerate(tqdm(to_process.items())):
-        print(f'Processing: {entry_id}')
+        print(f"Processing: {entry_id}: {entry_id.split('/')[-1]}")
 
         unique_id = entry_id
         citation = doc_info['citation']
@@ -179,6 +179,62 @@ def embed_abstracts(parsed_arxiv_results):
         path = os.path.join(ABSTRACTS_EMB_DIR, entry_id.split('/')[-1] + '.pkl')
         print(f'Saving abstract embeddings to path: {path}')
 
+        # save embeddings
+        with open(path, 'wb') as fp:
+            print(path)
+            pickle.dump(save_dict, fp)
+
+
+def embed_pdf_files(parsed_arxiv_results):
+    """
+
+    :param parsed_arxiv_results:
+    :return:
+    """
+    # directory to save embeddings
+    os.makedirs(PDF_EMB_DIR, exist_ok=True)
+    existing_embeddings = set([i[:-4] for i in os.listdir(PDF_EMB_DIR)])
+
+    arxiv_entries = set([i.split('/')[-1] for i in parsed_arxiv_results.keys()])
+    new_embeddings = arxiv_entries - existing_embeddings
+    print(f'Embeddings to process: {new_embeddings}')
+
+    to_process = {k: v for k, v in parsed_arxiv_results.items() if k.split('/')[-1] in new_embeddings}
+
+    parse_pdf = readers.parse_pdf
+    doc_splits = []
+    doc_metadatas = []
+    for entry_id, doc_info in tqdm(to_process.items()):
+        # get file path for file f
+        f = entry_id.split('/')[-1] + '.pdf'
+        f_path = os.path.join(FILE_DIRECTORY, f)
+
+        print(f'Reading and Embedding: {f} at {f_path}')
+
+        citation = doc_info['citation']
+        key = doc_info['key']
+
+        # get texts (splits) and metadata (citation, key, key_with_page)
+
+        splits, metadatas = parse_pdf(f_path, key=key, citation=citation, chunk_chars=1100, overlap=100)
+        doc_splits.append(splits)
+        doc_metadatas.append(metadatas)
+
+    if doc_splits:
+        doc_embeddings = embed_document(doc_splits, use_modal=os.environ['MODAL'])
+
+    # read pdf, embed chunks
+    for i, (entry_id, doc_info) in enumerate(tqdm(to_process.items())):
+        print(f'Processing: {entry_id}')
+
+        file_embeddings, num_tokens = doc_embeddings[i]['file_embeddings'], doc_embeddings[i]['num_tokens']
+
+        # save text chunks, file embeddings, metadatas, and num_tokens for each
+        save_dict = [doc_splits[i], file_embeddings, doc_metadatas[i], num_tokens]
+
+        path = os.path.join(PDF_EMB_DIR, entry_id.split('/')[-1] + '.pkl')
+
+        print(f'Saving pdf embeddings to path: {path}')
         # save embeddings
         with open(path, 'wb') as fp:
             pickle.dump(save_dict, fp)
@@ -235,61 +291,6 @@ def from_arxiv_docstore(parsed_arxiv_results):
     return docs
 
 
-def embed_pdf_files(parsed_arxiv_results):
-    """
-
-    :param parsed_arxiv_results:
-    :return:
-    """
-    # directory to save embeddings
-    os.makedirs(PDF_EMB_DIR, exist_ok=True)
-    existing_embeddings = set([i[:-4] for i in os.listdir(PDF_EMB_DIR)])
-
-    arxiv_entries = set([i.split('/')[-1] for i in parsed_arxiv_results.keys()])
-    new_embeddings = arxiv_entries - existing_embeddings
-    print(f'Embeddings to process: {new_embeddings}')
-
-    to_process = {k: v for k, v in parsed_arxiv_results.items() if k.split('/')[-1] in new_embeddings}
-
-    parse_pdf = readers.parse_pdf
-    doc_splits = []
-    doc_metadatas = []
-    for entry_id, doc_info in tqdm(to_process.items()):
-        # get file path for file f
-        f = entry_id.split('/')[-1] + '.pdf'
-        f_path = os.path.join(FILE_DIRECTORY, f)
-
-        print(f'Reading and Embedding: {f} at {f_path}')
-
-        citation = doc_info['citation']
-        key = doc_info['key']
-
-        # get texts (splits) and metadata (citation, key, key_with_page)
-
-        splits, metadatas = parse_pdf(f_path, key=key, citation=citation, chunk_chars=1100, overlap=100)
-        doc_splits.append(splits)
-        doc_metadatas.append(metadatas)
-
-    if doc_splits:
-        doc_embeddings = embed_document(doc_splits, use_modal=os.environ['MODAL'])
-
-    # read pdf, embed chunks
-    for i, (entry_id, doc_info) in enumerate(tqdm(to_process.items())):
-        print(f'Processing: {entry_id}')
-
-        file_embeddings, num_tokens = doc_embeddings[i]['file_embeddings'], doc_embeddings[i]['num_tokens']
-
-        # save text chunks, file embeddings, metadatas, and num_tokens for each
-        save_dict = [doc_splits[i], file_embeddings, doc_metadatas[i], num_tokens]
-
-        path = os.path.join(PDF_EMB_DIR, f[:-3] + 'pkl')
-
-        print(f'Saving pdf embeddings to path: {path}')
-        # save embeddings
-        with open(path, 'wb') as fp:
-            pickle.dump(save_dict, fp)
-
-
 def from_pdfs_docstore(parsed_arxiv_results):
     """
     Build from local directory of pdfs. For reference from PubFind, might not be needed here.
@@ -308,7 +309,7 @@ def from_pdfs_docstore(parsed_arxiv_results):
     return docs
 
 
-def make_query(docs, queries, question_embeddings, k=5, vector_search_only=False):
+async def make_query(docs, queries, question_embeddings, k=5, vector_search_only=False):
     """
 
     :param docs:
@@ -322,12 +323,12 @@ def make_query(docs, queries, question_embeddings, k=5, vector_search_only=False
     answers = []
     length_prompt = 'about 50 words'
     for query, embedding in zip(queries, question_embeddings):
-        answers.append(docs.query(query,
-                                  embedding=embedding,
-                                  length_prompt=length_prompt,
-                                  k=k,
-                                  vector_search_only=vector_search_only)
-                       )
+        answers.append(await docs.query(query,
+                                        embedding=embedding,
+                                        length_prompt=length_prompt,
+                                        k=k,
+                                        vector_search_only=vector_search_only)
+                                        )
 
     return answers
 

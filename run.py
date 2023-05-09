@@ -32,7 +32,7 @@ if __name__ == '__main__':
 
     arxiv_results = arxiv.Search(
         query=args.search,
-        max_results=2,
+        max_results=10,
         sort_by=arxiv.SortCriterion.Relevance,
         sort_order=arxiv.SortOrder.Descending
     ).results()
