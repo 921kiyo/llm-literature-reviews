@@ -56,31 +56,6 @@ def get_references(parsed_arxiv_results, contexts):
         outputs.append(output)
     return outputs
 
-def search_term_refiner(messages) -> list:
-    
-    system = "You are a arxiv api query master and you will receive questions and try to generate several better search terms queries based on the questions.\
-        The possible results will be displayed in a list. The list will need to follow the exact format as the following and only return the list:\
-                If the search terms are not well-defined in the scientific community, return an empty list. \
-                 Question: How can carbon nanotubes be manufactured at a large scale \
-                        Answer: ['all:carbon nanotubes+AND+all:manufacturing', 'all:carbon nanotubes+AND+all:large-scale production']"
-    message =[{"role": "system","content": system}]
-
-    message.append(
-            {"role": "user",
-            "content": "Questions: {}, \n Answer:".format("What is stable diffusion model?")}
-    )
-
-    completion = openai.ChatCompletion.create(
-            model="gpt-3.5-turbo",
-            messages=message,
-            temperature=0,
-            ).choices[0].message["content"]
-    output_queries = []
-    new_result = completion.split("'")
-    for idx, res in enumerate(new_result):
-        if idx % 2 == 1:
-                output_queries.append(res)
-    return output_queries
 
 @app.get("/")
 async def root():
@@ -88,8 +63,6 @@ async def root():
 
 @app.post("/search/")
 async def search_paper(message: SearchItem):
-    message_list = search_term_refiner(message.search_term)
-    #TODO: parallelize the following arxiv api to return the search result at the same time.
     search_results = arxiv.Search(
         query = message.search_term,
         max_results = 2,
