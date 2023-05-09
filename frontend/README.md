@@ -2,7 +2,7 @@
 
 This project generates Twitter bios for you using AI.
 
-[![Research Agent](./public/screenshot.png)](https://www.ResearchAgent.com)
+[![ArXiv Agent](./public/screenshot.png)](https://www.ResearchAgent.com)
 
 ## How it works
 
