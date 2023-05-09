@@ -2,8 +2,15 @@ from fastapi import FastAPI
 from pydantic import BaseModel
 from fastapi.middleware.cors import CORSMiddleware
 import arxiv
+from dotenv import load_dotenv
+import os
+from tqdm import tqdm
+load_dotenv()
+ROOT_DIRECTORY = os.path.join(os.path.dirname(os.path.dirname(os.path.realpath(__file__))), 'question_answer_pipeline/test')
+os.environ['ROOT_DIRECTORY'] = ROOT_DIRECTORY
+print('RootDirectory: ', ROOT_DIRECTORY)
 
-from question_answer_pipeline.src.utils import qa_abstracts, qa_pdf, parse_arxiv_json, download_pdfs_from_arxiv
+from question_answer_pipeline.src.utils import qa_abstracts, qa_pdf, parse_arxiv_json
 
 app = FastAPI()
 
@@ -31,7 +38,7 @@ def parse_search_results(results):
     output = []
     # TODO: try webscraping instead as it might be faster
     # TODO: Make this step parallel
-    for result in results:
+    for result in tqdm(results):
         output.append({
             'published': str(result.published),
             "entry_id": result.entry_id,
@@ -41,7 +48,9 @@ def parse_search_results(results):
         })
         filename = result.entry_id.split('/')[-1]+'.pdf'
         filepath = os.path.join(pdf_dir, filename)
-        result.download_pdf(dirpath=pdf_dir, filename=filepath)
+        print(f'PDFdir: {pdf_dir}, filename: {filename}, filepath: {filepath}')
+        if not os.path.exists(filepath):
+            result.download_pdf(dirpath=pdf_dir, filename=filename)
     return output
 
 def get_references(parsed_arxiv_results, contexts):
@@ -69,12 +78,23 @@ async def search_paper(message: SearchItem):
         sort_by = arxiv.SortCriterion.Relevance,
         sort_order = arxiv.SortOrder.Descending
     ).results()
+    if not search_results:
+        print(search_results)
+        print('NO RESULTS')
     search_results_list = parse_search_results(search_results)
-
+    if not search_results_list:
+        print('NO RESULTS')
+    print(search_results_list)
     parsed_arxiv_results = parse_arxiv_json(search_results_list)
-    nearest_neighbors, question_embeddings, asb_answers = qa_abstracts(question=message.search_term,
-                                                          k=5,
-                                                          parsed_arxiv_results=parsed_arxiv_results)
+
+    for key in parsed_arxiv_results:
+        print(f'Raw results: {key}')
+        print(parsed_arxiv_results[key]['summary'])
+
+    question = 'what is a neural network?'
+    nearest_neighbors, question_embeddings, asb_answers = await qa_abstracts(question=question, k=5,
+                                                                             parsed_arxiv_results=parsed_arxiv_results)
+
     clean_ref = get_references(parsed_arxiv_results, asb_answers[0].contexts)
 
     if not nearest_neighbors:
@@ -84,14 +104,9 @@ async def search_paper(message: SearchItem):
         print('Getting Answer from PDFs')
         relevant_documents = {url: parsed_arxiv_results[url] for url in nearest_neighbors}
         print(f'{list(relevant_documents.keys())}')
-        # relevant_pdfs = dict(url= (key, citation, llm_summary, text_chunk_from_pdf))
-        relevant_pdfs, pdf_answers = qa_pdf(question=message.search_term, k=20, parsed_arxiv_results=relevant_documents,
-                               question_embeddings=question_embeddings)
 
-    # relevant_pdfs, answers = qa_pdf(question=message.search_term,
-    #                        k=20,
-    #                        parsed_arxiv_results=relevant_documents,
-    #                        question_embeddings=question_embeddings)
+        # relevant_pdfs = dict(url= (key, citation, llm_summary, text_chunk_from_pdf))
+        relevant_pdfs, relevant_answers = await qa_pdf(question=question, k=5, parsed_arxiv_results=relevant_documents, question_embeddings=question_embeddings)
 
     return {"question": asb_answers[0].question,
             "answer": asb_answers[0].answer,
