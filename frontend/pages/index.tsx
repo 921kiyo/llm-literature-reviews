@@ -25,6 +25,7 @@ const Home: NextPage = () => {
   const askQuestion = async (e: any) => {
     e.preventDefault();
     setAnswer("");
+    setReferences([]);
     setLoading(true);
     console.log("asking question");
     const response = await fetch("http://127.0.0.1:8000/search/", {
@@ -128,9 +129,11 @@ const Home: NextPage = () => {
         <hr className="h-px bg-gray-700 border-1 dark:bg-gray-700" />
         <div className="space-y-10 my-10">
           <div className="space-y-8 flex flex-col items-center justify-center max-w-xl mx-auto">
-            {answer ? `Answer: ${answer}` : null}
-          </div>
-          <div className="space-y-8 flex flex-col items-center justify-center max-w-xl mx-auto">
+            {answer ? (
+              <div className="font-bold text-xl text-center">
+                Answer: <span className="font-normal">{answer}</span>
+              </div>
+            ) : null}
             {references && references.length > 0 ? (
               <>
                 <div className="font-bold text-lg text-center">References:</div>
