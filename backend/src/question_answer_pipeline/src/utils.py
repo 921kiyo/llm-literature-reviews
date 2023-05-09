@@ -53,7 +53,7 @@ def qa_pdf(question, k, parsed_arxiv_results, question_embeddings=None):
         print('Answer from pdfs:')
         print(answer.formatted_answer)
 
-    return answer.contexts
+    return answer.contexts, answers
 
 
 def qa_abstracts(question, k, parsed_arxiv_results=None):
@@ -82,7 +82,7 @@ def qa_abstracts(question, k, parsed_arxiv_results=None):
         print('Answer from abstracts:')
         print(answer.formatted_answer)
 
-    return answer.contexts, question_embeddings
+    return answer.contexts, question_embeddings, answers
 
 
 def parse_arxiv_json(arxiv_results):
@@ -130,8 +130,7 @@ def parse_arxiv_json(arxiv_results):
 
         summary = arxiv_res['summary']
 
-        url_parsed_json[url] = {'summary': summary, 'citation': citation, 'key': key}
-
+        url_parsed_json[url] = {'summary': summary, 'citation': citation, 'key': key, "title": title, "authors": authors, "journal": source}
     return url_parsed_json
 
 
@@ -205,7 +204,7 @@ def create_docs(relevant_documents, dir):
                                  text_embeddings=file_embeddings,
                                  metadatas=metadata)
 
-    print(f'added {no_files + 1} files to docs')
+        print(f'added {no_files + 1} files to docs')
 
     return docs
 
@@ -352,7 +351,7 @@ def get_citations(list_of_filenames):
         "Citation:"
         "If a citation cannot be determined from the text return None."
     )
-    llm = ChatOpenAI(temperature=0.1, max_tokens=512, model_name='gpt-3.5-turbo')
+    llm = ChatOpenAI(temperature=0, max_tokens=512, model_name='gpt-3.5-turbo')
 
     chat_prompt = ChatPromptTemplate.from_messages([system_message, citation_prompt])
     cite_chain = LLMChain(prompt=chat_prompt, llm=llm)

@@ -10,9 +10,9 @@ import LoadingDots from "../components/LoadingDots";
 
 const Home: NextPage = () => {
   const [loading, setLoading] = useState(false);
-  const [bio, setBio] = useState("");
-  const [vibe, setVibe] = useState<VibeType>("Professional");
-  const [generatedBios, setGeneratedBios] = useState<String>("");
+  const [query, setQuery] = useState("");
+  const [answer, setAnswer] = useState<String>("");
+  const [references, setReferences] = useState([]);
 
   const bioRef = useRef<null | HTMLDivElement>(null);
 
@@ -22,45 +22,28 @@ const Home: NextPage = () => {
     }
   };
 
-  const prompt = `Generate 2 ${vibe} twitter biographies with no hashtags and clearly labeled "1." and "2.". ${
-    vibe === "Funny"
-      ? "Make sure there is a joke in there and it's a little ridiculous."
-      : null
-  }
-      Make sure each generated biography is less than 160 characters, has short sentences that are found in Twitter bios, and base them on this context: ${bio}${
-    bio.slice(-1) === "." ? "" : "."
-  }`;
-
-  const generateBio = async (e: any) => {
+  const askQuestion = async (e: any) => {
     e.preventDefault();
-    setGeneratedBios("");
+    setAnswer("");
     setLoading(true);
-
+    console.log("asking question");
     const response = await fetch("http://127.0.0.1:8000/search/", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        search_term: "what is deep neural network?",
+        search_term: query,
       }),
     });
 
-    console.log(response.json());
-    // const response = await fetch("/api/generate", {
-    //   method: "POST",
-    //   headers: {
-    //     "Content-Type": "application/json",
-    //   },
-    //   body: JSON.stringify({
-    //     prompt,
-    //   }),
-    // });
-
-    // if (!response.ok) {
-    //   throw new Error(response.statusText);
-    // }
-
+    if (!response.ok) {
+      throw new Error(response.statusText);
+    }
+    const data = await response.json();
+    setAnswer(data.answer);
+    setReferences(data.references);
+    setLoading(false);
     // // This data is a ReadableStream
     // const data = response.body;
     // if (!data) {
@@ -75,7 +58,7 @@ const Home: NextPage = () => {
     //   const { value, done: doneReading } = await reader.read();
     //   done = doneReading;
     //   const chunkValue = decoder.decode(value);
-    //   setGeneratedBios((prev) => prev + chunkValue);
+    //   setAnswer((prev) => prev + chunkValue);
     // }
     // scrollToBios();
     // setLoading(false);
@@ -84,14 +67,14 @@ const Home: NextPage = () => {
   return (
     <div className="flex max-w-5xl mx-auto flex-col items-center justify-center py-2 min-h-screen">
       <Head>
-        <title>Research Agent</title>
+        <title>ArXiv Agent</title>
         <link rel="icon" href="/favicon.ico" />
       </Head>
 
       <Header />
       <main className="flex flex-1 w-full flex-col items-center text-center px-4 mt-12 ">
         <h1 className="sm:text-5xl text-4xl max-w-[708px] font-bold text-slate-900">
-          Get insights from research papers in seconds
+          Get insights from arXiv papers in seconds
         </h1>
         {/* <p className="text-slate-500 mt-5">47,118 bios generated so far.</p> */}
         <div className="max-w-xl w-full">
@@ -112,8 +95,8 @@ const Home: NextPage = () => {
             </p>
           </div>
           <textarea
-            value={bio}
-            onChange={(e) => setBio(e.target.value)}
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
             rows={3}
             className="w-full rounded-md border-gray-300 shadow-sm focus:border-black focus:ring-black my-5"
             placeholder={
@@ -123,7 +106,7 @@ const Home: NextPage = () => {
           {!loading && (
             <button
               className="bg-black rounded-xl text-white font-medium px-4 py-2 hover:bg-black/80 w-full"
-              onClick={(e) => generateBio(e)}
+              onClick={(e) => askQuestion(e)}
             >
               Search &rarr;
             </button>
@@ -144,39 +127,27 @@ const Home: NextPage = () => {
         />
         <hr className="h-px bg-gray-700 border-1 dark:bg-gray-700" />
         <div className="space-y-10 my-10">
-          {generatedBios && (
-            <>
-              <div>
-                <h2
-                  className="sm:text-4xl text-3xl font-bold text-slate-900 mx-auto"
-                  ref={bioRef}
-                >
-                  Your generated bios
-                </h2>
-              </div>
-              <div className="space-y-8 flex flex-col items-center justify-center max-w-xl mx-auto">
-                {generatedBios
-                  .substring(generatedBios.indexOf("1") + 3)
-                  .split("2.")
-                  .map((generatedBio) => {
-                    return (
-                      <div
-                        className="bg-white rounded-xl shadow-md p-4 hover:bg-gray-100 transition cursor-copy border"
-                        onClick={() => {
-                          navigator.clipboard.writeText(generatedBio);
-                          toast("Bio copied to clipboard", {
-                            icon: "✂️",
-                          });
-                        }}
-                        key={generatedBio}
-                      >
-                        <p>{generatedBio}</p>
-                      </div>
-                    );
-                  })}
-              </div>
-            </>
-          )}
+          <div className="space-y-8 flex flex-col items-center justify-center max-w-xl mx-auto">
+            {answer ? `Answer: ${answer}` : null}
+          </div>
+          {/* <div className="space-y-8 flex flex-col items-center justify-center max-w-xl mx-auto">
+            {references ? `References: ${references}` : null}
+          </div> */}
+          <div className="space-y-8 flex flex-col items-center justify-center max-w-xl mx-auto">
+            {references && references.length > 0 ? (
+              <>
+                <div>References:</div>
+                {references.map((reference, index) => (
+                  <div>
+                    <div key={index}>{reference.title}</div>
+                    <div key={index}>{reference.authors}</div>
+                    <div key={index}>{reference.journal}</div>
+                    <div key={index}>{reference.llm_summary}</div>
+                  </div>
+                ))}
+              </>
+            ) : null}
+          </div>
         </div>
       </main>
       <Footer />

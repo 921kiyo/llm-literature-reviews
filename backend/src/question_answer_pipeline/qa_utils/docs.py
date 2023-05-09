@@ -96,9 +96,9 @@ class Docs:
         if llm is None:
             llm = "gpt-3.5-turbo"
         if type(llm) is str:
-            llm = ChatOpenAI(temperature=0.1, model=llm)
+            llm = ChatOpenAI(temperature=0, model=llm)
         if type(summary_llm) is str:
-            summary_llm = ChatOpenAI(temperature=0.1, model=summary_llm)
+            summary_llm = ChatOpenAI(temperature=0, model=summary_llm)
         self.llm = llm
         if summary_llm is None:
             summary_llm = llm
@@ -200,7 +200,7 @@ class Docs:
         if key != metadatas[0]['dockey']:
             for j in range(len(metadatas)):
                 metadatas[j]['dockey'] = key
-        
+
         self.docs[path] = dict(texts=texts, metadata=metadatas, key=key)
 
         if self._faiss_index is not None:
