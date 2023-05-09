@@ -3,7 +3,7 @@ from pydantic import BaseModel
 from fastapi.middleware.cors import CORSMiddleware
 import arxiv
 
-from question_answer_pipeline.src.utils import qa_abstracts, qa_pdf, parse_arxiv_json
+from question_answer_pipeline.src.utils import qa_abstracts, qa_pdf, parse_arxiv_json, download_pdfs_from_arxiv
 
 app = FastAPI()
 
@@ -77,7 +77,16 @@ async def search_paper(message: SearchItem):
                                                           parsed_arxiv_results=parsed_arxiv_results)
     clean_ref = get_references(parsed_arxiv_results, asb_answers[0].contexts)
 
-    # relevant_documents = {url: parsed_arxiv_results[url] for url in nearest_neighbors}
+    if not nearest_neighbors:
+        print('Cannot answer your question.')
+    else:
+        print(f'Nearest Neighbors: {list(nearest_neighbors.keys())}')
+        print('Getting Answer from PDFs')
+        relevant_documents = {url: parsed_arxiv_results[url] for url in nearest_neighbors}
+        print(f'{list(relevant_documents.keys())}')
+        # relevant_pdfs = dict(url= (key, citation, llm_summary, text_chunk_from_pdf))
+        relevant_pdfs, pdf_answers = qa_pdf(question=message.search_term, k=20, parsed_arxiv_results=relevant_documents,
+                               question_embeddings=question_embeddings)
 
     # relevant_pdfs, answers = qa_pdf(question=message.search_term,
     #                        k=20,
