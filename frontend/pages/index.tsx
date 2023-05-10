@@ -65,6 +65,17 @@ const Home: NextPage = () => {
     // setLoading(false);
   };
 
+  const [showChat, setShowChat] = useState<number | null>(null);
+  const [chatQuestion, setChatQuestion] = useState("");
+  const [chatAnswer, setChatAnswer] = useState<String>("");
+
+  const askQuestionToPaper = async (e: any) => {
+    e.preventDefault();
+    setChatAnswer(
+      "This is a very question! Indeed, there's no such thing as stupid questions. So keep asking me!"
+    );
+  };
+
   return (
     <div className="flex max-w-5xl mx-auto flex-col items-center justify-center py-2 min-h-screen">
       <Head>
@@ -148,8 +159,42 @@ const Home: NextPage = () => {
                       {reference.title}
                     </a>
                     <div className="italic">{reference.authors}</div>
-                    {/* <div>{reference.journal}</div> */}
                     <div className="text-gray-700">{reference.llm_summary}</div>
+
+                    <button
+                      onClick={() =>
+                        setShowChat(showChat === index ? null : index)
+                      }
+                      className="bg-blue-500 rounded-lg text-white font-medium px-2 py-1 hover:bg-blue-700 w-full mt-2"
+                    >
+                      {showChat === index
+                        ? "Close chat"
+                        : "Chat with this paper"}
+                    </button>
+
+                    {showChat === index && (
+                      <div>
+                        <textarea
+                          value={chatQuestion}
+                          onChange={(e) => setChatQuestion(e.target.value)}
+                          placeholder="Type your question here..."
+                          className="w-full rounded-md border-gray-300 shadow-sm focus:border-black focus:ring-black"
+                        />
+
+                        <button
+                          onClick={(e) => askQuestionToPaper(e)}
+                          className="bg-green-500 rounded-lg text-white font-medium px-2 py-1 hover:bg-green-700 w-full mt-2"
+                        >
+                          Ask question
+                        </button>
+
+                        {chatAnswer && (
+                          <div className="mt-2 p-2 bg-gray-200 rounded-lg">
+                            {chatAnswer}
+                          </div>
+                        )}
+                      </div>
+                    )}
                   </div>
                 ))}
               </>
