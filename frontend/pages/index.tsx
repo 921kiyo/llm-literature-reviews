@@ -13,6 +13,7 @@ const Home: NextPage = () => {
   const [query, setQuery] = useState("");
   const [answer, setAnswer] = useState<String>("");
   const [references, setReferences] = useState([]);
+  const [arxivResults, setArxivResults] = useState({});
 
   const bioRef = useRef<null | HTMLDivElement>(null);
 
@@ -26,6 +27,7 @@ const Home: NextPage = () => {
     e.preventDefault();
     setAnswer("");
     setReferences([]);
+    setArxivResults({});
     setLoading(true);
     console.log("asking question");
     const response = await fetch("http://127.0.0.1:8000/search/", {
@@ -44,6 +46,7 @@ const Home: NextPage = () => {
     const data = await response.json();
     setAnswer(data.answer);
     setReferences(data.references);
+    setArxivResults(data.arxiv_results);
     setLoading(false);
     // // This data is a ReadableStream
     // const data = response.body;
@@ -69,8 +72,31 @@ const Home: NextPage = () => {
   const [chatQuestion, setChatQuestion] = useState("");
   const [chatAnswer, setChatAnswer] = useState<String>("");
 
-  const askQuestionToPaper = async (e: any) => {
+  const askQuestionToPaper = async (
+    e: any,
+    url: str,
+    parsed_arxiv_results: any
+  ) => {
     e.preventDefault();
+    console.log("what is parsed_arxiv_results? ");
+    console.log(parsed_arxiv_results);
+    const response = await fetch("http://127.0.0.1:8000/chat/", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        question: chatQuestion,
+        url: url,
+        parsed_arxiv_results: parsed_arxiv_results,
+      }),
+    });
+
+    if (!response.ok) {
+      throw new Error(response.statusText);
+    }
+    const data = await response.json();
+    // setChatAnswer(data.answer);
     setChatAnswer(
       "This is a very question! Indeed, there's no such thing as stupid questions. So keep asking me!"
     );
@@ -86,7 +112,7 @@ const Home: NextPage = () => {
       <Header />
       <main className="flex flex-1 w-full flex-col items-center text-center px-4 mt-12 ">
         <h1 className="sm:text-5xl text-4xl max-w-[708px] font-bold text-slate-900">
-          Get insights from arXiv papers in seconds
+          Chat with arXiv papers
         </h1>
         {/* <p className="text-slate-500 mt-5">47,118 bios generated so far.</p> */}
         <div className="max-w-xl w-full">
@@ -182,7 +208,9 @@ const Home: NextPage = () => {
                         />
 
                         <button
-                          onClick={(e) => askQuestionToPaper(e)}
+                          onClick={(e) =>
+                            askQuestionToPaper(e, reference.url, arxivResults)
+                          }
                           className="bg-green-500 rounded-lg text-white font-medium px-2 py-1 hover:bg-green-700 w-full mt-2"
                         >
                           Ask question

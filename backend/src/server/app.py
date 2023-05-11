@@ -1,9 +1,8 @@
 from fastapi import FastAPI
-from pydantic import BaseModel
+from .schemas import SearchItem, Chat
 from fastapi.middleware.cors import CORSMiddleware
 import arxiv
 from dotenv import load_dotenv
-import os
 from tqdm import tqdm
 load_dotenv()
 
@@ -13,6 +12,7 @@ app = FastAPI()
 
 origins = [
    "http://192.168.211.:8000",
+   "http://127.0.0.1:8000",
    "http://localhost",
    "http://localhost:3000",
 ]
@@ -24,9 +24,6 @@ app.add_middleware(
    allow_methods=["*"],
    allow_headers=["*"],
 )
-
-class SearchItem(BaseModel):
-    search_term: str
 
 def parse_search_results(results):
     # TODO this is so hacky, so will fix this later
@@ -66,6 +63,18 @@ def get_references(parsed_arxiv_results, contexts):
 @app.get("/")
 async def root():
     return {"message": "Hello World"}
+
+@app.post("/chat/")
+async def ask_question(chat: Chat):
+    print("Hitting this!")
+
+    relevant_documents = {chat.url: chat.parsed_arxiv_results[chat.url]}
+    relevant_pdfs, relevant_answers = await qa_pdf(question=chat.question, k=1, parsed_arxiv_results=relevant_documents)
+    print(relevant_pdfs)
+    print(relevant_answers)
+    print("Hitting here!")
+    pass
+
 
 @app.post("/search/")
 async def search_paper(message: SearchItem):
@@ -109,6 +118,7 @@ async def search_paper(message: SearchItem):
             "answer": asb_answers[0].answer,
             "context": asb_answers[0].context,
             "contexts": asb_answers[0].contexts,
-            "references": clean_ref}
+            "references": clean_ref,
+            "arxiv_results": parsed_arxiv_results}
 
 
