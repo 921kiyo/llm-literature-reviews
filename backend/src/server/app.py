@@ -5,6 +5,7 @@ import arxiv
 from dotenv import load_dotenv
 import os
 from tqdm import tqdm
+import openai
 load_dotenv()
 
 from question_answer_pipeline.src.utils import qa_abstracts, qa_pdf, parse_arxiv_json
@@ -62,6 +63,46 @@ def get_references(parsed_arxiv_results, contexts):
         outputs.append(output)
     return outputs
 
+def search_term_refiner(search_question) -> list:
+    openai.api_key  = os.getenv('OPENAI_API_KEY')
+    system = "You are a arxiv api query master and you will receive questions and try to generate several better search terms queries based on the questions.\
+        The possible results will be displayed in a list. The list will need to follow the exact format as the following and only return the list:\
+                If the search terms are not well-defined in the scientific community, return an empty list. \
+                 Question: How can carbon nanotubes be manufactured at a large scale \
+                        Answer: ['all:carbon nanotubes+AND+all:manufacturing', 'all:carbon nanotubes+AND+all:large-scale production']"
+    message =[{"role": "system","content": system}]
+
+    message.append(
+            {"role": "user",
+            "content": "Questions: {}, \n Answer:".format(search_question)}
+    )
+
+    completion = openai.ChatCompletion.create(
+            model="gpt-3.5-turbo",
+            messages=message,
+            temperature=0,
+            ).choices[0].message["content"]
+    output_queries = []
+    new_result = completion.split("'")
+    for idx, res in enumerate(new_result):
+        if idx % 2 == 1:
+                output_queries.append(res)
+    return output_queries
+
+def search_result_combiner(queries):
+    import itertools
+    search_result_list = []
+    for term in queries:
+        search_result_list.append(arxiv.Search(
+                query = term,
+                max_results = 5,
+                sort_by = arxiv.SortCriterion.Relevance,
+                sort_order = arxiv.SortOrder.Descending
+            ).results())
+    # Merge the results using itertools.chain()
+    merged_results = itertools.chain.from_iterable(search_result_list)
+    return merged_results
+
 
 @app.get("/")
 async def root():
@@ -69,16 +110,18 @@ async def root():
 
 @app.post("/search/")
 async def search_paper(message: SearchItem):
-    search_results = arxiv.Search(
-        query = message.search_term,
-        max_results = 2,
-        sort_by = arxiv.SortCriterion.Relevance,
-        sort_order = arxiv.SortOrder.Descending
-    ).results()
+    search_results = search_term_refiner(message.search_term)
+    # search_results = arxiv.Search(
+    #     query = message.search_term,
+    #     max_results = 5,
+    #     sort_by = arxiv.SortCriterion.Relevance,
+    #     sort_order = arxiv.SortOrder.Descending
+    # ).results()
     if not search_results:
         print(search_results)
         print('NO RESULTS')
-    search_results_list = parse_search_results(search_results)
+    all_search_results = search_result_combiner(search_results)
+    search_results_list = parse_search_results(all_search_results)
     if not search_results_list:
         print('NO RESULTS')
     print(search_results_list)
@@ -103,7 +146,7 @@ async def search_paper(message: SearchItem):
         print(f'{list(relevant_documents.keys())}')
 
         # relevant_pdfs = dict(url= (key, citation, llm_summary, text_chunk_from_pdf))
-        relevant_pdfs, relevant_answers = await qa_pdf(question=question, k=5, parsed_arxiv_results=relevant_documents, question_embeddings=question_embeddings)
+        relevant_pdfs, relevant_answers = await qa_pdf(question=message.search_term, k=5, parsed_arxiv_results=relevant_documents, question_embeddings=question_embeddings)
 
     return {"question": asb_answers[0].question,
             "answer": asb_answers[0].answer,
