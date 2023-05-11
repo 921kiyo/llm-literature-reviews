@@ -21,8 +21,26 @@ pdfs_cache = '/root/volume'
 # add_pdfs_to_embed(['/Users/hectorlopezhernandez/PycharmProjects/pub_find/appel/pdfs/Appel_ACIE_2012.pdf'])
 @stub.local_entrypoint()
 def run():
-    pass
-    # useful when using ```modal run```
+    import os
+    os.environ['ROOT_DIRECTORY'] = 'backend/src/question_answer_pipeline/test'
+
+    from backend.src.question_answer_pipeline.qa_utils.readers import parse_pdf
+    import datetime
+
+    import argparse
+    f_path = '/Users/hectorlopezhernandez/PycharmProjects/tribe-hackathon/backend/src/question_answer_pipeline/test/pdfs/1411.4116v1.pdf'
+
+    splits, metadata = parse_pdf(f_path, key='', citation='', chunk_chars=1100, overlap=100)
+    doc_splits = [splits, splits]
+    print('-' * 50)
+    print('Embedding')
+    print(f'Splits should be of length: {len(splits)}')
+    start = datetime.datetime.now()
+    print(start.strftime("%H:%M:%S"))
+    embed_document(doc_splits, use_modal='false')
+    end = datetime.datetime.now()
+    print(end.strftime("%H:%M:%S"), f'elapsed (s): {(end - start).total_seconds():.3}')
+    print('-' * 50)
 
 
 @stub.function(shared_volumes={pdfs_cache: volume})
@@ -96,11 +114,15 @@ def embed_document(doc_splits, use_modal='false'):
     doc_embeddings = []
 
     if use_modal.lower() == 'true':
-        print('Using MODAL')
-        f = modal.Function.lookup(MODAL_DEPLOYMENT, "get_splits_embeddings")
-        # f = partial(f, use_modal='true')
-        iterable_ = [{'splits': splits, 'use_modal': use_modal} for splits in doc_splits]
+        # Here we split per document
 
+        print('MODAL ENTRYPOINT: Using MODAL')
+        print('Mapping per document')
+
+        f = modal.Function.lookup(MODAL_DEPLOYMENT, "get_splits_embeddings")
+        f = get_splits_embeddings
+        # f = partial(f, use_modal='true')
+        iterable_ = [(splits, use_modal) for splits in doc_splits]
         for file_embeddings, num_tokens in f.starmap(iterable_):
             doc_embeddings.append({'file_embeddings': file_embeddings, 'num_tokens': num_tokens})
     else:
@@ -109,34 +131,36 @@ def embed_document(doc_splits, use_modal='false'):
         from InstructorEmbedding import INSTRUCTOR
         from transformers import AutoTokenizer
         import torch.cuda
-        model_root = 'embedding_models'
+        model_root = os.path.join(os.getenv('ROOT_DIRECTORY'), 'embedding_models')
         print(f"GPU access is {'available' if torch.cuda.is_available() else 'Not Available'}")
         model = INSTRUCTOR('hkunlp/instructor-xl', cache_folder=model_root)
         tokenizer = AutoTokenizer.from_pretrained('hkunlp/instructor-xl',
                                                   cache_dir=model_root)  # initialize the INSTRUCTOR tokenizer
         # process items
         for splits in tqdm(doc_splits):
-            file_embeddings, num_tokens = get_splits_embeddings(splits, use_modal='false', model=model, tokenizer=tokenizer)
+            file_embeddings, num_tokens = get_splits_embeddings(splits, use_modal='false', model=model,
+                                                                tokenizer=tokenizer)
             doc_embeddings.append({'file_embeddings': file_embeddings, 'num_tokens': num_tokens})
 
     return doc_embeddings
 
 
 @stub.function(
+    gpu='T4',
     image=PubFind_image,
     shared_volumes={CACHE_PATH: volume}
 )
 def get_splits_embeddings(splits, use_modal='false', model=None, tokenizer=None):
-
     """
-    Wrap in modal function so that i can be mapped
+    FOR MAPPING: can map this function to parallelize the analysis of each document
     :param splits:
     :param use_modal:
     :param model:
     :param tokenizer:
     :return:
     """
-
+    print(f'In get_splits_embeddings')
+    print(len(splits), f'use_modal : {use_modal}')
     file_embeddings, num_tokens = embed_file_chunks(splits, use_modal=use_modal, model=model, tokenizer=tokenizer)
 
     return file_embeddings, num_tokens
@@ -151,38 +175,53 @@ def embed_file_chunks(splits, use_modal='false', model=None, tokenizer=None):
 
     file_embeddings = []
     num_tokens = []
+    print(f'In embed_file_chunks: use_modal: {use_modal}')
+    if False: # use_modal.lower() == 'true':
+        print('Mapping Splits with Modal')
+        model_root = CACHE_PATH.split('/')[-1]
+        # f = modal.Function.lookup(MODAL_DEPLOYMENT, "get_file_chunks_embeds")
+        # f = partial(f, model_root=model_root)
+        f = get_file_chunks_embeds
+        iterable_ = [(split, model_root) for split in splits]
 
-    if use_modal.lower() == 'true':
-        print('Using MODAL')
-        model_root = CACHE_PATH
-        f = modal.Function.lookup(MODAL_DEPLOYMENT, "get_file_chunks_embeds")
-        f = partial(f, model_root=model_root)
-
-        for embeds, tokens in f.map(splits=splits):
+        for embeds, tokens in f.starmap(iterable_):
             num_tokens.append(tokens)
             file_embeddings.append(embeds)
     else:
-        print('Using Local Machine')
-        model_root = 'embedding_models'
+        print('Iterating through splits')
+        if model is None:
+            # if we're loading a container for each model
+            model_root = CACHE_PATH.split('/')[-1]
+            from InstructorEmbedding import INSTRUCTOR
+            from transformers import AutoTokenizer
+            import torch.cuda
+
+            print(f"GPU access is {'available' if torch.cuda.is_available() else 'not available'}")
+            model = INSTRUCTOR('hkunlp/instructor-xl', cache_folder=model_root)
+            tokenizer = AutoTokenizer.from_pretrained('hkunlp/instructor-xl',
+                                                      cache_dir=model_root)  # initialize the INSTRUCTOR tokenizer
+
         for split in tqdm(splits, mininterval=2):
-            embeds, tokens = get_file_chunks_embeds(split, model_root, model=model, tokenizer=tokenizer)
+            embeds, tokens = get_file_chunks_embeds(split, model=model, tokenizer=tokenizer)
             num_tokens.append(tokens)
             file_embeddings.append(embeds)
 
     return file_embeddings, num_tokens
 
 
-@stub.function(gpu="A10G",
+@stub.function(gpu="T4",
                image=PubFind_image,
                shared_volumes={CACHE_PATH: volume}
                )
-def get_file_chunks_embeds(split, model_root, model=None, tokenizer=None):
+def get_file_chunks_embeds(split, model=None, tokenizer=None):
     if model is None:
+        # if we're loading a container for EVERY split
+        model_root = CACHE_PATH.split('/')[-1]
         from InstructorEmbedding import INSTRUCTOR
         from transformers import AutoTokenizer
         import torch.cuda
 
-        print(f"GPU access is {'available' if torch.cuda.is_available() else 'Not Available'}")
+        print(f"GPU access is {'available' if torch.cuda.is_available() else 'not available'}")
         model = INSTRUCTOR('hkunlp/instructor-xl', cache_folder=model_root)
         tokenizer = AutoTokenizer.from_pretrained('hkunlp/instructor-xl',
                                                   cache_dir=model_root)  # initialize the INSTRUCTOR tokenizer
