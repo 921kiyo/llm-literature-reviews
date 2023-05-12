@@ -96,10 +96,7 @@ const Home: NextPage = () => {
       throw new Error(response.statusText);
     }
     const data = await response.json();
-    // setChatAnswer(data.answer);
-    setChatAnswer(
-      "This is a very question! Indeed, there's no such thing as stupid questions. So keep asking me!"
-    );
+    setChatAnswer(data.answer);
   };
 
   return (

@@ -66,14 +66,9 @@ async def root():
 
 @app.post("/chat/")
 async def ask_question(chat: Chat):
-    print("Hitting this!")
-
     relevant_documents = {chat.url: chat.parsed_arxiv_results[chat.url]}
-    relevant_pdfs, relevant_answers = await qa_pdf(question=chat.question, k=1, parsed_arxiv_results=relevant_documents)
-    print(relevant_pdfs)
-    print(relevant_answers)
-    print("Hitting here!")
-    pass
+    relevant_pdfs, relevant_answers = await qa_pdf(question=chat.question, k=20, parsed_arxiv_results=relevant_documents)
+    return {"answer": relevant_answers[0].answer}
 
 
 @app.post("/search/")
