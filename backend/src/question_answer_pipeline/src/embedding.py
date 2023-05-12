@@ -13,6 +13,7 @@ stub = Stub(MODAL_DEPLOYMENT)
 volume = SharedVolume().persist(MODAL_DEPLOYMENT + '_volume')
 pdfs_cache = '/root/volume'
 MODEL_FOLDER = 'instructorXL'
+LOCAL_MODEL_FOLDER = './question_answer_pipeline/test/embedding_models'
 
 
 def download_models():
@@ -83,20 +84,19 @@ def embed_questions(queries, use_modal='false'):
         question_embeddings = f.call(queries, model_root)
     else:
         print('Using Local Machine')
-        model_root = 'embedding_models'
+        model_root = LOCAL_MODEL_FOLDER
         question_embeddings = get_question_embedding(queries, model_root)
 
     return question_embeddings
 
 
-@stub.function(gpu="A10G",
+@stub.function(gpu="T4",
                image=PubFind_image,
                shared_volumes={CACHE_PATH: volume}
                )
 def get_question_embedding(queries, model_root):
     from InstructorEmbedding import INSTRUCTOR
     import torch.cuda
-
     print(f"GPU access is {'available' if torch.cuda.is_available() else 'Not Available'}")
     model = INSTRUCTOR('hkunlp/instructor-xl', cache_folder=model_root)
     print('Have model')
@@ -141,14 +141,14 @@ def embed_document(doc_splits, use_modal='false', map_splits=False):
         from InstructorEmbedding import INSTRUCTOR
         from transformers import AutoTokenizer
         import torch.cuda
-        model_root = os.path.join(os.getenv('ROOT_DIRECTORY'), 'embedding_models')
+        model_root = LOCAL_MODEL_FOLDER
         print(f"GPU access is {'available' if torch.cuda.is_available() else 'Not Available'}")
         model = INSTRUCTOR('hkunlp/instructor-xl', cache_folder=model_root)
         tokenizer = AutoTokenizer.from_pretrained('hkunlp/instructor-xl',
                                                   cache_dir=model_root)  # initialize the INSTRUCTOR tokenizer
         # process items
         for splits in tqdm(doc_splits):
-            file_embeddings, num_tokens = embed_file_splits(splits, map_splits=False, model=model,
+            file_embeddings, num_tokens = embed_file_splits(splits, use_modal=False, map_splits=False, model=model,
                                                             tokenizer=tokenizer)
             doc_embeddings.append({'file_embeddings': file_embeddings, 'num_tokens': num_tokens})
 
@@ -160,20 +160,17 @@ def embed_document(doc_splits, use_modal='false', map_splits=False):
     image=PubFind_image,
     shared_volumes={CACHE_PATH: volume}
 )
-def embed_file_splits(splits, map_splits=False, model=None, tokenizer=None):
+def embed_file_splits(splits, map_splits=False, use_modal=True,  model=None, tokenizer=None):
     """
     Wrapper that will embed questions remotely or locally
     use_modal: Str (comes from env variable)
     """
-    from functools import partial
 
     file_embeddings = []
     num_tokens = []
     print(f'In embed_file_chunks: map_splits: {map_splits}')
     if map_splits is True:  # use_modal.lower() == 'true':
         print('Mapping Splits with Modal')
-        # f = modal.Function.lookup(MODAL_DEPLOYMENT, "get_file_chunks_embeds")
-        # f = partial(f, model_root=model_root)
         f = get_file_chunks_embeds
 
         for embeds, tokens in f.map(splits):
@@ -183,7 +180,8 @@ def embed_file_splits(splits, map_splits=False, model=None, tokenizer=None):
         print('Iterating through splits')
         if model is None:
             # if we're loading a container for each model
-            model_root = MODEL_FOLDER
+            model_root = MODEL_FOLDER if use_modal else LOCAL_MODEL_FOLDER
+            print(f'Using model at: {model_root}')
             from InstructorEmbedding import INSTRUCTOR
             from transformers import AutoTokenizer
             import torch.cuda

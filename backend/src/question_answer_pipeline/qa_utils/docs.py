@@ -291,7 +291,6 @@ class Docs:
             _k = k * 10  # heuristic
 
         docs = self.vector_search(answer, _k, marginal_relevance=marginal_relevance)
-        print(f'docs: {docs}')
         # get summaries
         print(f'OpenAI summarization started at {datetime.now().time().strftime("%X")}')
         print(f'Summarizing {len(docs)} docs.')
@@ -326,7 +325,6 @@ class Docs:
             context_str += "\n\nValid keys: " + ", ".join(valid_keys)
         answer.context = context_str
 
-        print(f'Context_str: {context_str}')
         return answer
 
     async def query(
