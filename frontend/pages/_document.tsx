@@ -6,22 +6,13 @@ class MyDocument extends Document {
       <Html lang="en">
         <Head>
           <link rel="icon" href="/favicon.ico" />
-          <meta
-            name="description"
-            content="Get insights from arXiv papers in seconds."
-          />
+          <meta name="description" content="Chat with arXiv papers." />
           <meta property="og:site_name" content="ResearchAgent.com" />
-          <meta
-            property="og:description"
-            content="Get insights from arXiv papers in seconds."
-          />
+          <meta property="og:description" content="Chat with arXiv papers." />
           <meta property="og:title" content="ArXiv Agent" />
           <meta name="twitter:card" content="summary_large_image" />
           <meta name="twitter:title" content="ArXiv Agent" />
-          <meta
-            name="twitter:description"
-            content="Get insights from arXiv papers in seconds."
-          />
+          <meta name="twitter:description" content="Chat with arXiv papers." />
           <meta
             property="og:image"
             content="https://ResearchAgent.com/og-image.png"
