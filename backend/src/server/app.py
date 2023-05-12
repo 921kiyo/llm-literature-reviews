@@ -75,7 +75,7 @@ async def ask_question(chat: Chat):
 async def search_paper(message: SearchItem):
     search_results = arxiv.Search(
         query = message.search_term,
-        max_results = 2,
+        max_results = 10,
         sort_by = arxiv.SortCriterion.Relevance,
         sort_order = arxiv.SortOrder.Descending
     ).results()
@@ -92,8 +92,7 @@ async def search_paper(message: SearchItem):
         print(f'Raw results: {key}')
         print(parsed_arxiv_results[key]['summary'])
 
-    question = 'what is a neural network?'
-    nearest_neighbors, question_embeddings, asb_answers = await qa_abstracts(question=question, k=5,
+    nearest_neighbors, question_embeddings, asb_answers = await qa_abstracts(question=message.search_term, k=5,
                                                                              parsed_arxiv_results=parsed_arxiv_results)
 
     clean_ref = get_references(parsed_arxiv_results, asb_answers[0].contexts)
@@ -107,7 +106,7 @@ async def search_paper(message: SearchItem):
         print(f'{list(relevant_documents.keys())}')
 
         # relevant_pdfs = dict(url= (key, citation, llm_summary, text_chunk_from_pdf))
-        relevant_pdfs, relevant_answers = await qa_pdf(question=question, k=5, parsed_arxiv_results=relevant_documents, question_embeddings=question_embeddings)
+        relevant_pdfs, relevant_answers = await qa_pdf(question=message.search_term, k=5, parsed_arxiv_results=relevant_documents, question_embeddings=question_embeddings)
 
     return {"question": asb_answers[0].question,
             "answer": asb_answers[0].answer,
