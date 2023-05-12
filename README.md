@@ -16,6 +16,7 @@
 ```
 export MODAL=false
 export OPENAI_API_KEY=sk-XXX
+export ROOT_DIRECTORY=local-directory
 ```
 
 ## The Docs Class
