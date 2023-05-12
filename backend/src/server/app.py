@@ -4,6 +4,8 @@ from fastapi.middleware.cors import CORSMiddleware
 import arxiv
 from dotenv import load_dotenv
 from tqdm import tqdm
+import openai
+import os
 load_dotenv()
 import datetime
 from question_answer_pipeline.src.utils import qa_abstracts, qa_pdf, parse_arxiv_json
@@ -59,6 +61,32 @@ def get_references(parsed_arxiv_results, contexts):
         outputs.append(output)
     return outputs
 
+def search_term_refiner(search_question) -> list:
+    openai.api_key  = os.getenv('OPENAI_API_KEY')
+    system = "You are a Google search master and you will receive a question and try to come up with a better search terms queries based on the question.\
+        The possible search keywords will be displayed in a list. The list will need to follow the exact format as the following and only return the list:\
+                If the search terms are not well-defined in the scientific community, return an empty list. \
+                 Question: What is the current limitation of large language model? \
+                        Answer: ['limitation', 'large language model']"
+    message =[{"role": "system","content": system}]
+
+    message.append(
+            {"role": "user",
+            "content": "Questions: {}, \n Answer:".format(search_question)}
+    )
+
+    completion = openai.ChatCompletion.create(
+            model="gpt-3.5-turbo",
+            messages=message,
+            temperature=0,
+            ).choices[0].message["content"]
+    output_queries = []
+    new_result = completion.split("'")
+    for idx, res in enumerate(new_result):
+        if idx % 2 == 1:
+                output_queries.append(res)
+    return output_queries
+
 
 @app.get("/")
 async def root():
@@ -73,9 +101,11 @@ async def ask_question(chat: Chat):
 
 @app.post("/search/")
 async def search_paper(message: SearchItem):
+    refined_search_keywords = search_term_refiner(message.search_term)
+    search_keyword = ' AND '.join(refined_search_keywords)
     search_results = arxiv.Search(
-        query = message.search_term,
-        max_results = 25,
+        query = search_keyword,
+        max_results = 10,
         sort_by = arxiv.SortCriterion.Relevance,
         sort_order = arxiv.SortOrder.Descending
     ).results()
@@ -83,20 +113,15 @@ async def search_paper(message: SearchItem):
         print(search_results)
         print('NO RESULTS')
     search_results_list = parse_search_results(search_results)
-    if not search_results_list:
-        print('NO RESULTS')
-
     parsed_arxiv_results = parse_arxiv_json(search_results_list)
 
     for key in parsed_arxiv_results:
         print(f'Raw results: {key}')
         print(parsed_arxiv_results[key]['summary'])
 
-    print('-' * 50)
     start = datetime.datetime.now()
     print(start.strftime("%H:%M:%S"))
-    question = message.search_term
-    nearest_neighbors, question_embeddings, asb_answers = await qa_abstracts(question=question, k=10,
+    nearest_neighbors, question_embeddings, asb_answers = await qa_abstracts(question=message.search_term, k=5,
                                                                              parsed_arxiv_results=parsed_arxiv_results)
     end = datetime.datetime.now()
     print(end.strftime("%H:%M:%S"), f'elapsed (s): {(end - start).total_seconds():.3}')
@@ -116,7 +141,7 @@ async def search_paper(message: SearchItem):
         print('-' * 50)
         start = datetime.datetime.now()
         print(start.strftime("%H:%M:%S"))
-        relevant_pdfs, relevant_answers = await qa_pdf(question=question, k=20, parsed_arxiv_results=relevant_documents, question_embeddings=question_embeddings)
+        relevant_pdfs, relevant_answers = await qa_pdf(question=message.search_term, k=5, parsed_arxiv_results=relevant_documents, question_embeddings=question_embeddings)
         end = datetime.datetime.now()
         print(end.strftime("%H:%M:%S"), f'elapsed (s): {(end - start).total_seconds():.3}')
         print('-' * 50)

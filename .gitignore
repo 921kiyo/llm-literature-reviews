@@ -3,6 +3,7 @@
 backend/src/question_answer_pipeline/test/abstract_embeddings/
 backend/src/question_answer_pipeline/test/docs
 backend/src/question_answer_pipeline/test/index/**
+backend/src/question_answer_pipeline/test/**
 embedding_models/**
 backend/src/embedding_models/**
 abstract_embeddings/**
