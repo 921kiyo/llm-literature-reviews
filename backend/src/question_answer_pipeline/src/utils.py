@@ -38,7 +38,7 @@ async def qa_pdf(question, k, parsed_arxiv_results, question_embeddings=None):
     # create a docstore that stays updated with the filesystem
     # it is rebuilt if pdfs are deleted and items are added when new files are detected
     docs = from_pdfs_docstore(parsed_arxiv_results)
-    print("what is docs: ", docs.name)
+
     queries = [question]
 
     if question_embeddings is None:
