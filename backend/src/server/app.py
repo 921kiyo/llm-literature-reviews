@@ -7,6 +7,7 @@ from tqdm import tqdm
 import openai
 import os
 load_dotenv()
+from datetime import datetime
 
 from question_answer_pipeline.src.utils import qa_abstracts, qa_pdf, parse_arxiv_json
 
@@ -49,14 +50,14 @@ def parse_search_results(results):
             result.download_pdf(dirpath=pdf_dir, filename=filename)
     return output
 
-def get_references(parsed_arxiv_results, contexts):
+def get_references(parsed_arxiv_results, contexts=None):
     outputs = []
     for url in contexts.keys():
         output = {}
         output["title"] = parsed_arxiv_results[url]["title"]
         output["authors"] = parsed_arxiv_results[url]["authors"]
         output["journal"] = parsed_arxiv_results[url]["journal"]
-        output["llm_summary"] = contexts[url][2]
+        output["llm_summary"] = None
         output["url"] = url
         outputs.append(output)
     return outputs
@@ -87,6 +88,22 @@ def search_term_refiner(search_question) -> list:
                 output_queries.append(res)
     return output_queries
 
+def cohere_rerank(question , top_k, parsed_arxiv_results):
+    import cohere
+    secret_api = os.getenv('COHERE_API_KEY')
+    co = cohere.Client(secret_api)
+    url_arxiv = {}
+    for url in parsed_arxiv_results:
+        url_arxiv[url] = parsed_arxiv_results[url]["title"] + '  ---  ' + parsed_arxiv_results[url]["summary"]
+    mapping_url_arxiv = list(url_arxiv.keys())
+    arxiv_content = list(url_arxiv.values())
+    results = co.rerank(model="rerank-english-v2.0", query=question, documents=arxiv_content, top_n=top_k)
+    output_dic = {}
+    for obj in results:
+        url = mapping_url_arxiv[obj.index]
+        content = parsed_arxiv_results[url]
+        output_dic[url] = content
+    return output_dic
 
 @app.get("/")
 async def root():
@@ -120,10 +137,26 @@ async def search_paper(message: SearchItem):
         print(f'Raw results: {key}')
         print(parsed_arxiv_results[key]['summary'])
 
-    nearest_neighbors, question_embeddings, asb_answers = await qa_abstracts(question=message.search_term, k=5,
-                                                                             parsed_arxiv_results=parsed_arxiv_results)
+    # t1 = datetime.now()
+    # print(f'QA_abstraction function started at {datetime.now().time().strftime("%X")}')
+    # nearest_neighbors, question_embeddings, asb_answers = await qa_abstracts(question=message.search_term, k=5,
+    #                                                                          parsed_arxiv_results=parsed_arxiv_results)
+    # t2 = datetime.now()
+    # print(nearest_neighbors)
+    # print(f'QA_abstraction function runs for {t2-t1}')
+    print('\n' + '--'*10+'Before rerank ')
+    print(f'How many papers are there {len(parsed_arxiv_results)}')
+    t1 = datetime.now()
+    print(f'Cohrere Rerank function started at {datetime.now().time().strftime("%X")}')
+    nearest_neighbors = cohere_rerank(question = message.search_term, top_k = 5, parsed_arxiv_results=parsed_arxiv_results)
+    t2 = datetime.now()
+    print(f'Cohere rerank function runs for {t2-t1}')
 
-    clean_ref = get_references(parsed_arxiv_results, asb_answers[0].contexts)
+    print('\n' + '--'*10+'After rerank ')
+    print(f'How many papers are there {len(nearest_neighbors)}')
+    print()
+
+    clean_ref = get_references(parsed_arxiv_results, nearest_neighbors)
 
     if not nearest_neighbors:
         print('Cannot answer your question.')
@@ -131,15 +164,16 @@ async def search_paper(message: SearchItem):
         print(f'Nearest Neighbors: {list(nearest_neighbors.keys())}')
         print('Getting Answer from PDFs')
         relevant_documents = {url: parsed_arxiv_results[url] for url in nearest_neighbors}
-        print(f'{list(relevant_documents.keys())}')
+        print('\n ----- \n How many pdf I will be embedding: {}'.format(len(relevant_documents)))
+        print(f'{list(relevant_documents)}')
 
         # relevant_pdfs = dict(url= (key, citation, llm_summary, text_chunk_from_pdf))
-        relevant_pdfs, relevant_answers = await qa_pdf(question=message.search_term, k=5, parsed_arxiv_results=relevant_documents, question_embeddings=question_embeddings)
+        relevant_pdfs, relevant_answers = await qa_pdf(question=message.search_term, k=5, parsed_arxiv_results=relevant_documents, question_embeddings=None)
 
-    return {"question": asb_answers[0].question,
-            "answer": asb_answers[0].answer,
-            "context": asb_answers[0].context,
-            "contexts": asb_answers[0].contexts,
+    return {"question": relevant_answers[0].question,
+            "answer": relevant_answers[0].answer,
+            "context": relevant_answers[0].context,
+            "contexts": relevant_answers[0].contexts,
             "references": clean_ref,
             "arxiv_results": parsed_arxiv_results}
 

@@ -81,7 +81,9 @@ async def qa_abstracts(question, k, parsed_arxiv_results=None):
         print('-' * 50)
         print('Answer from abstracts:')
         print(answer.formatted_answer)
-
+    print('\n What is answers[0]? \n')
+    print(answers[0].contexts)
+    print('-'*15+'\n')
     return answer.contexts, question_embeddings, answers
 
 
