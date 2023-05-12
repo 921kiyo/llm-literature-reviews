@@ -280,6 +280,7 @@ class Docs:
             max_sources: int = 5,
             marginal_relevance: bool = True,
             key_filter: Optional[List[str]] = None,
+            vector_search_only: bool = False
     ) -> str:
         if self._faiss_index is None:
             self._build_faiss_index()
@@ -292,11 +293,13 @@ class Docs:
 
         docs = self.vector_search(answer, _k, marginal_relevance=marginal_relevance)
         # get summaries
-        print(f'OpenAI summarization started at {datetime.now().time().strftime("%X")}')
-        print(f'Summarizing {len(docs)} docs.')
-        llm_summaries = await async_get_summaries(docs, answer.question)
-        print(f'OpenAI summarization finished at {datetime.now().time().strftime("%X")}')
-
+        if not vector_search_only:
+            print(f'OpenAI summarization started at {datetime.now().time().strftime("%X")}')
+            print(f'Summarizing {len(docs)} docs.')
+            llm_summaries = await async_get_summaries(docs, answer.question)
+            print(f'OpenAI summarization finished at {datetime.now().time().strftime("%X")}')
+        else:
+            llm_summaries = ['' for _ in range(len(docs))]
         # Grab the information from the nearest neigbors metadata
         for i, doc in enumerate(docs):
             if key_filter is not None and doc.metadata["dockey"] not in key_filter:
@@ -353,6 +356,7 @@ class Docs:
                 k=k,
                 max_sources=max_sources,
                 marginal_relevance=marginal_relevance,
+                vector_search_only=vector_search_only
             )
             tokens += cb.total_tokens
 

@@ -74,7 +74,7 @@ async def qa_abstracts(question, k, parsed_arxiv_results=None):
     question_embeddings = embed_questions(queries, use_modal=os.environ['MODAL'])
 
     print('getting answers')
-    answers = await make_query(docs, queries, question_embeddings, k=k, vector_search_only=False)
+    answers = await make_query(docs, queries, question_embeddings, k=k, vector_search_only=True)
 
     for answer in answers:
         # answer.contexts = dict(url=(key, citation, LLM summary related to question, original_text))
@@ -123,14 +123,17 @@ def parse_arxiv_json(arxiv_results):
         published_date = datetime.fromisoformat(arxiv_res['published'])
         year = str(published_date.year)
         published_date = mla_months[published_date.month] + ', ' + year + '. '
+
         url = arxiv_res['entry_id']
+        unique_id = os.path.split(url)[1]
 
         citation = authors + title + source + url.split('/')[-1] + '. ' + published_date + url
         key = f"{authors_list[0]}, {year}"
 
         summary = arxiv_res['summary']
+        download_handle = arxiv_res['download_handle']
 
-        url_parsed_json[url] = {'summary': summary, 'citation': citation, 'key': key, "title": title, "authors": authors, "journal": source}
+        url_parsed_json[url] = {'summary': summary, 'citation': citation, 'key': key, "title": title, "authors": authors, "journal": source, 'download_handle': download_handle, 'unique_id': unique_id}
     return url_parsed_json
 
 
@@ -335,18 +338,18 @@ async def make_query(docs, queries, question_embeddings, k=5, vector_search_only
     return answers
 
 
-def download_pdfs_from_arxiv(relevant_arxiv_results):
+def download_relevant_documents(relevant_documents):
     """
     :param: relevant_arxiv_results: arxiv results object from nearest_neighbor search
     :return:
     """
-    os.makedirs(FILE_DIRECTORY, exist_ok=True)
-    for result in relevant_arxiv_results:
-        filename = result['entry_id'].split('/')[-1] + '.pdf'
-        filepath = os.path.join(FILE_DIRECTORY, filename)
+    # os.makedirs(FILE_DIRECTORY, exist_ok=True)
+    for rlv in relevant_documents.values():
+        filename = rlv['unique_id'] + '.pdf'
+        pdf_dir = os.path.join(os.getenv("ROOT_DIRECTORY"), "pdfs")
+        filepath = os.path.join(pdf_dir, filename)
         if not os.path.exists(filepath):
-            print(f"downloading: {filename}")
-            result['download_handle'](FILE_DIRECTORY, filename=filename)
+            rlv['download_handle'](dirpath=pdf_dir, filename=filename)
 #####################################
 # Possibly not needed
 #####################################
