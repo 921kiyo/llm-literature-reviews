@@ -6,7 +6,7 @@ from tqdm import tqdm
 import re
 from ..qa_utils import readers, Docs
 import pickle
-from .embedding import embed_file_chunks, embed_questions, embed_document
+from .embedding import embed_questions, embed_document
 from langchain.chains import LLMChain
 from langchain.prompts.chat import HumanMessagePromptTemplate, ChatPromptTemplate, SystemMessage
 from langchain.chat_models import ChatOpenAI
