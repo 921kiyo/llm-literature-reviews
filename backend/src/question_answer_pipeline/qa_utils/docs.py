@@ -339,8 +339,8 @@ class Docs:
             vector_search_only: bool = False
     ):
 
-        # if k < max_sources:
-        #     raise ValueError("k should be greater than max_sources")
+        if k < max_sources:
+            raise ValueError("k should be greater than max_sources")
         tokens = 0
         answer = Answer(query, question_embedding=embedding)
 
