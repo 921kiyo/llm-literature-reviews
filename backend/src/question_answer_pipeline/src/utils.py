@@ -6,7 +6,7 @@ from tqdm import tqdm
 import re
 from ..qa_utils import readers, Docs
 import pickle
-from .embedding import embed_file_chunks, embed_questions, embed_document
+from .embedding import embed_questions, embed_document
 from langchain.chains import LLMChain
 from langchain.prompts.chat import HumanMessagePromptTemplate, ChatPromptTemplate, SystemMessage
 from langchain.chat_models import ChatOpenAI
@@ -150,11 +150,12 @@ def embed_abstracts(parsed_arxiv_results):
     to_process = {k: v for k, v in parsed_arxiv_results.items() if k.split('/')[-1] in new_embeddings}
 
     doc_splits = []
+    # for abstracts, lets make these all the same 'doc' so we extend the list
     for entry_id, doc_info in to_process.items():
-        doc_splits.append([doc_info['summary']])
+        doc_splits.extend([doc_info['summary']])
 
     if doc_splits:
-        doc_embeddings = embed_document(doc_splits, use_modal=os.environ['MODAL'])
+        doc_embeddings = embed_document([doc_splits], use_modal=os.environ['MODAL'])
 
     for i, (entry_id, doc_info) in enumerate(tqdm(to_process.items())):
         print(f"Processing: {entry_id}: {entry_id.split('/')[-1]}")
@@ -169,8 +170,10 @@ def embed_abstracts(parsed_arxiv_results):
             dockey=key,
             key=f'abstract_{key}'
         )]
+        # if we concatenate all the abstracts for faster encoding then there's only 1 entry in doc_embeddings, but every entry
+        # corresponds to an individual abstract
 
-        file_embeddings, num_tokens = doc_embeddings[i]['file_embeddings'], doc_embeddings[i]['num_tokens']
+        file_embeddings, num_tokens = [doc_embeddings[0]['file_embeddings'][i]], [doc_embeddings[0]['num_tokens'][i]]
 
         # save text chunks, file embeddings, metadatas, and num_tokens for each
         save_dict = [splits, file_embeddings, metadata, num_tokens]

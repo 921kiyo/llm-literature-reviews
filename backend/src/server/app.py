@@ -7,7 +7,7 @@ from tqdm import tqdm
 import openai
 import os
 load_dotenv()
-
+import datetime
 from question_answer_pipeline.src.utils import qa_abstracts, qa_pdf, parse_arxiv_json
 
 app = FastAPI()
@@ -113,15 +113,19 @@ async def search_paper(message: SearchItem):
         print(search_results)
         print('NO RESULTS')
     search_results_list = parse_search_results(search_results)
-
     parsed_arxiv_results = parse_arxiv_json(search_results_list)
 
     for key in parsed_arxiv_results:
         print(f'Raw results: {key}')
         print(parsed_arxiv_results[key]['summary'])
 
+    start = datetime.datetime.now()
+    print(start.strftime("%H:%M:%S"))
     nearest_neighbors, question_embeddings, asb_answers = await qa_abstracts(question=message.search_term, k=5,
                                                                              parsed_arxiv_results=parsed_arxiv_results)
+    end = datetime.datetime.now()
+    print(end.strftime("%H:%M:%S"), f'elapsed (s): {(end - start).total_seconds():.3}')
+    print('-' * 50)
 
     clean_ref = get_references(parsed_arxiv_results, asb_answers[0].contexts)
 
@@ -134,7 +138,13 @@ async def search_paper(message: SearchItem):
         print(f'{list(relevant_documents.keys())}')
 
         # relevant_pdfs = dict(url= (key, citation, llm_summary, text_chunk_from_pdf))
+        print('-' * 50)
+        start = datetime.datetime.now()
+        print(start.strftime("%H:%M:%S"))
         relevant_pdfs, relevant_answers = await qa_pdf(question=message.search_term, k=5, parsed_arxiv_results=relevant_documents, question_embeddings=question_embeddings)
+        end = datetime.datetime.now()
+        print(end.strftime("%H:%M:%S"), f'elapsed (s): {(end - start).total_seconds():.3}')
+        print('-' * 50)
 
     return {"question": asb_answers[0].question,
             "answer": asb_answers[0].answer,
