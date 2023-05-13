@@ -218,30 +218,10 @@ def embed_pdf_files(parsed_arxiv_results):
 
     to_process = {k: v for k, v in parsed_arxiv_results.items() if k.split('/')[-1] in new_embeddings}
 
-    # TODO: make online extracting text and parallelize this action. 
+    # Online extracting pdf and parallelization. 
     print('*'*50)
     time1 = datetime.now()
     
-
-    # doc_splits = []
-    # doc_metadatas = []
-    # for entry_id, doc_info in tqdm(to_process.items()):
-    #     # get file path for file f
-    #     # f = entry_id.split('/')[-1] + '.pdf'
-    #     # f_path = os.path.join(FILE_DIRECTORY, f)
-
-    #     print(f'Online Reading and Embedding: {entry_id} ')
-
-    #     citation = doc_info['citation']
-    #     key = doc_info['key']
-    #     unique_id = doc_info['unique_id']
-    #     url = doc_info['download_link']
-
-    #     # get texts (splits) and metadata (citation, key, key_with_page)
-
-    #     splits, metadatas = parse_pdf(url, unique_id=unique_id, key=key, citation=citation, chunk_chars=1100, overlap=100)
-    #     doc_splits.append(splits)
-    #     doc_metadatas.append(metadatas)
     import multiprocessing
     from tqdm import tqdm
 
@@ -271,10 +251,9 @@ def embed_pdf_files(parsed_arxiv_results):
     doc_metadatas = []
 
     for result in results:
-        chunk_results = result.get()
-        for entry_id, splits, metadatas in chunk_results:
-            doc_splits.append(splits)
-            doc_metadatas.append(metadatas)
+        entry_id, splits, metadatas = result.get()
+        doc_splits.append(splits)
+        doc_metadatas.append(metadatas)
 
     time2 = datetime.now()
     print(f'The time for online reading and processing: {(time2 - time1).total_seconds()}')
