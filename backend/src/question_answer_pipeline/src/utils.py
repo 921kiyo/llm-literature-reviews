@@ -124,13 +124,17 @@ def parse_arxiv_json(arxiv_results):
         year = str(published_date.year)
         published_date = mla_months[published_date.month] + ', ' + year + '. '
         url = arxiv_res['entry_id']
+        unique_id = os.path.split(url)[1]
 
         citation = authors + title + source + url.split('/')[-1] + '. ' + published_date + url
         key = f"{authors_list[0]}, {year}"
 
         summary = arxiv_res['summary']
+        download_handle = arxiv_res['download_handle']
 
-        url_parsed_json[url] = {'summary': summary, 'citation': citation, 'key': key, "title": title, "authors": authors, "journal": source}
+        url_parsed_json[url] = {'summary': summary, 'citation': citation, 'key': key, "title": title,
+                                "authors": authors, "journal": source, 'download_handle': download_handle,
+                                'unique_id': unique_id}
     return url_parsed_json
 
 

@@ -40,7 +40,8 @@ def parse_search_results(results):
             "entry_id": result.entry_id,
             'summary': result.summary,
             'title': result.title,
-            "authors": [{'name': author.name} for author in result.authors]
+            "authors": [{'name': author.name} for author in result.authors],
+            'download_handle': result.download_pdf
         })
         filename = result.entry_id.split('/')[-1]+'.pdf'
         filepath = os.path.join(pdf_dir, filename)
@@ -51,14 +52,16 @@ def parse_search_results(results):
 
 def get_references(parsed_arxiv_results, contexts):
     outputs = []
-    for url in contexts.keys():
-        output = {}
-        output["title"] = parsed_arxiv_results[url]["title"]
-        output["authors"] = parsed_arxiv_results[url]["authors"]
-        output["journal"] = parsed_arxiv_results[url]["journal"]
-        output["llm_summary"] = contexts[url][2]
-        output["url"] = url
-        outputs.append(output)
+    for url in parsed_arxiv_results:
+        contexts_key = os.path.split(url)[1]
+        if contexts_key in contexts:
+            output = {}
+            output["title"] = parsed_arxiv_results[url]["title"]
+            output["authors"] = parsed_arxiv_results[url]["authors"]
+            output["journal"] = parsed_arxiv_results[url]["journal"]
+            output["llm_summary"] = contexts[contexts_key][2]
+            output["url"] = url
+            outputs.append(output)
     return outputs
 
 def search_term_refiner(search_question) -> list:
@@ -121,13 +124,11 @@ async def search_paper(message: SearchItem):
 
     start = datetime.datetime.now()
     print(start.strftime("%H:%M:%S"))
-    nearest_neighbors, question_embeddings, asb_answers = await qa_abstracts(question=message.search_term, k=5,
+    nearest_neighbors, question_embeddings, asb_answers = await qa_abstracts(question=message.search_term, k=10,
                                                                              parsed_arxiv_results=parsed_arxiv_results)
     end = datetime.datetime.now()
     print(end.strftime("%H:%M:%S"), f'elapsed (s): {(end - start).total_seconds():.3}')
     print('-' * 50)
-
-    clean_ref = get_references(parsed_arxiv_results, asb_answers[0].contexts)
 
     if not nearest_neighbors:
         print('Cannot answer your question.')
@@ -141,15 +142,18 @@ async def search_paper(message: SearchItem):
         print('-' * 50)
         start = datetime.datetime.now()
         print(start.strftime("%H:%M:%S"))
-        relevant_pdfs, relevant_answers = await qa_pdf(question=message.search_term, k=5, parsed_arxiv_results=relevant_documents, question_embeddings=question_embeddings)
+        relevant_pdfs, relevant_answers = await qa_pdf(question=message.search_term, k=30, parsed_arxiv_results=relevant_documents, question_embeddings=question_embeddings)
         end = datetime.datetime.now()
         print(end.strftime("%H:%M:%S"), f'elapsed (s): {(end - start).total_seconds():.3}')
         print('-' * 50)
 
-    return {"question": asb_answers[0].question,
-            "answer": asb_answers[0].answer,
-            "context": asb_answers[0].context,
-            "contexts": asb_answers[0].contexts,
+    output_obj = relevant_answers
+    clean_ref = get_references(parsed_arxiv_results, output_obj[0].contexts)
+
+    return {"question": output_obj[0].question,
+            "answer": output_obj[0].answer,
+            "context": output_obj[0].context,
+            "contexts": output_obj[0].contexts,
             "references": clean_ref,
             "arxiv_results": parsed_arxiv_results}
 

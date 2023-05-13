@@ -331,7 +331,7 @@ class Docs:
             self,
             query: str,
             k: int = 10,
-            max_sources: int = 5,
+            max_sources: int = 10,
             length_prompt: str = "about 100 words",
             marginal_relevance: bool = True,
             embedding: Optional[List[float]] = None,
