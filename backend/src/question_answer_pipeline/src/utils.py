@@ -74,7 +74,7 @@ async def qa_abstracts(question, k, parsed_arxiv_results=None):
     question_embeddings = embed_questions(queries, use_modal=os.environ['MODAL'])
 
     print('getting answers')
-    answers = await make_query(docs, queries, question_embeddings, k=k, vector_search_only=False)
+    answers = await make_query(docs, queries, question_embeddings, k=k, vector_search_only=True)
 
     for answer in answers:
         # answer.contexts = dict(url=(key, citation, LLM summary related to question, original_text))
@@ -477,3 +477,16 @@ def files_for_search(file_directory, delete_remove=True):
             os.remove(remove_path)
 
     return files_not_embedded, files_removed
+
+def download_relevant_documents(relevant_documents):
+    """
+    :param: relevant_arxiv_results: arxiv results object from nearest_neighbor search
+    :return:
+    """
+    # os.makedirs(FILE_DIRECTORY, exist_ok=True)
+    for rlv in relevant_documents.values():
+        filename = rlv['unique_id'] + '.pdf'
+        pdf_dir = os.path.join(os.getenv("ROOT_DIRECTORY"), "pdfs")
+        filepath = os.path.join(pdf_dir, filename)
+        if not os.path.exists(filepath):
+            rlv['download_handle'](dirpath=pdf_dir, filename=filename)

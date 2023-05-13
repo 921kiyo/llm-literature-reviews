@@ -8,7 +8,7 @@ import openai
 import os
 load_dotenv()
 import datetime
-from question_answer_pipeline.src.utils import qa_abstracts, qa_pdf, parse_arxiv_json
+from question_answer_pipeline.src.utils import qa_abstracts, qa_pdf, parse_arxiv_json, download_relevant_documents
 
 app = FastAPI()
 
@@ -43,11 +43,11 @@ def parse_search_results(results):
             "authors": [{'name': author.name} for author in result.authors],
             'download_handle': result.download_pdf
         })
-        filename = result.entry_id.split('/')[-1]+'.pdf'
-        filepath = os.path.join(pdf_dir, filename)
-        print(f'PDFdir: {pdf_dir}, filename: {filename}, filepath: {filepath}')
-        if not os.path.exists(filepath):
-            result.download_pdf(dirpath=pdf_dir, filename=filename)
+        # filename = result.entry_id.split('/')[-1]+'.pdf'
+        # filepath = os.path.join(pdf_dir, filename)
+        # print(f'PDFdir: {pdf_dir}, filename: {filename}, filepath: {filepath}')
+        # if not os.path.exists(filepath):
+        #     result.download_pdf(dirpath=pdf_dir, filename=filename)
     return output
 
 def get_references(parsed_arxiv_results, contexts):
@@ -108,7 +108,7 @@ async def search_paper(message: SearchItem):
     search_keyword = ' AND '.join(refined_search_keywords)
     search_results = arxiv.Search(
         query = search_keyword,
-        max_results = 10,
+        max_results = 25,
         sort_by = arxiv.SortCriterion.Relevance,
         sort_order = arxiv.SortOrder.Descending
     ).results()
@@ -136,6 +136,7 @@ async def search_paper(message: SearchItem):
         print(f'Nearest Neighbors: {list(nearest_neighbors.keys())}')
         print('Getting Answer from PDFs')
         relevant_documents = {url: parsed_arxiv_results[url] for url in nearest_neighbors}
+        download_relevant_documents(relevant_documents)
         print(f'{list(relevant_documents.keys())}')
 
         # relevant_pdfs = dict(url= (key, citation, llm_summary, text_chunk_from_pdf))
