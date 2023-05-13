@@ -10,7 +10,7 @@ load_dotenv()
 
 from datetime import datetime
 
-from question_answer_pipeline.src.utils import qa_pdf, parse_arxiv_json
+from question_answer_pipeline.src.utils import qa_pdf, parse_arxiv_json, qa_abstracts
 
 
 app = FastAPI()
@@ -125,11 +125,11 @@ async def search_paper(message: SearchItem):
 
 
 
-    start = datetime.datetime.now()
+    start = datetime.now()
     print(start.strftime("%H:%M:%S"))
     nearest_neighbors, question_embeddings, asb_answers = await qa_abstracts(question=message.search_term, k=5,
                                                                              parsed_arxiv_results=parsed_arxiv_results)
-    end = datetime.datetime.now()
+    end = datetime.now()
     print(end.strftime("%H:%M:%S"), f'elapsed (s): {(end - start).total_seconds():.3}')
     print('-' * 50)
 
