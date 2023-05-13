@@ -32,7 +32,7 @@ if __name__ == '__main__':
 
 
     # openai.api_key  = os.getenv('OPENAI_API_KEY')
-    secret_api_key = os.getenv('SERPAI_API_KEY')
+    serpai_api_key = os.getenv('SERPAI_API_KEY')
     def search_arxiv():
         search_results = arxiv.Search(
             query=args.search,
@@ -50,7 +50,7 @@ if __name__ == '__main__':
             "q": args.search,
             "hl": "en",
             "num": 5,
-            "api_key": secret_api_key
+            "api_key": serpai_api_key
         }
         search = GoogleSearch(params)
         results = search.get_dict()

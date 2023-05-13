@@ -9,9 +9,11 @@ import os
 load_dotenv()
 from datetime import datetime
 
-from question_answer_pipeline.src.utils import qa_abstracts, qa_pdf, parse_arxiv_json
+from question_answer_pipeline.src.utils import qa_pdf, parse_arxiv_json
 
 app = FastAPI()
+
+time_spend = 0
 
 origins = [
    "http://192.168.211.:8000",
@@ -29,6 +31,7 @@ app.add_middleware(
 )
 
 def parse_search_results(results):
+    global time_spend
     # TODO this is so hacky, so will fix this later
     import os
     pdf_dir = os.path.join(os.getenv("ROOT_DIRECTORY"), "pdfs")
@@ -41,13 +44,14 @@ def parse_search_results(results):
             "entry_id": result.entry_id,
             'summary': result.summary,
             'title': result.title,
-            "authors": [{'name': author.name} for author in result.authors]
+            "authors": [{'name': author.name} for author in result.authors],
+            'pdf_link': result.pdf_url,
         })
-        filename = result.entry_id.split('/')[-1]+'.pdf'
-        filepath = os.path.join(pdf_dir, filename)
-        print(f'PDFdir: {pdf_dir}, filename: {filename}, filepath: {filepath}')
-        if not os.path.exists(filepath):
-            result.download_pdf(dirpath=pdf_dir, filename=filename)
+        # filename = result.entry_id.split('/')[-1]+'.pdf'
+        # filepath = os.path.join(pdf_dir, filename)
+        # print(f'PDFdir: {pdf_dir}, filename: {filename}, filepath: {filepath}')
+        # if not os.path.exists(filepath):
+        #     result.download_pdf(dirpath=pdf_dir, filename=filename)
     return output
 
 def get_references(parsed_arxiv_results, contexts=None):
@@ -118,6 +122,7 @@ async def ask_question(chat: Chat):
 
 @app.post("/search/")
 async def search_paper(message: SearchItem):
+    global time_spend
     refined_search_keywords = search_term_refiner(message.search_term)
     search_keyword = ' AND '.join(refined_search_keywords)
     search_results = arxiv.Search(
@@ -130,7 +135,6 @@ async def search_paper(message: SearchItem):
         print(search_results)
         print('NO RESULTS')
     search_results_list = parse_search_results(search_results)
-
     parsed_arxiv_results = parse_arxiv_json(search_results_list)
 
     for key in parsed_arxiv_results:
@@ -168,7 +172,16 @@ async def search_paper(message: SearchItem):
         print(f'{list(relevant_documents)}')
 
         # relevant_pdfs = dict(url= (key, citation, llm_summary, text_chunk_from_pdf))
+        print('-' * 50)
+        start = datetime.now()
+        print(start.strftime("%H:%M:%S"))
         relevant_pdfs, relevant_answers = await qa_pdf(question=message.search_term, k=5, parsed_arxiv_results=relevant_documents, question_embeddings=None)
+        end = datetime.now()
+        print(end.strftime("%H:%M:%S"), f'elapsed (s): {(end - start).total_seconds():.3}')
+        print('-' * 50)
+        time_spend += int((end - start).total_seconds())
+        print('*'*50 + '\n')
+        print(f'The time spent for downloading pdf and doing embedding is {time_spend}')
 
     return {"question": relevant_answers[0].question,
             "answer": relevant_answers[0].answer,

@@ -291,7 +291,6 @@ class Docs:
             _k = k * 10  # heuristic
 
         docs = self.vector_search(answer, _k, marginal_relevance=marginal_relevance)
-
         # get summaries
         print(f'OpenAI summarization started at {datetime.now().time().strftime("%X")}')
         print(f'Summarizing {len(docs)} docs.')
