@@ -7,7 +7,9 @@ from tqdm import tqdm
 import openai
 import os
 load_dotenv()
+
 from datetime import datetime
+
 
 from question_answer_pipeline.src.utils import qa_abstracts, qa_pdf, parse_arxiv_json
 
@@ -130,12 +132,12 @@ async def search_paper(message: SearchItem):
         print(search_results)
         print('NO RESULTS')
     search_results_list = parse_search_results(search_results)
-
     parsed_arxiv_results = parse_arxiv_json(search_results_list)
 
     for key in parsed_arxiv_results:
         print(f'Raw results: {key}')
         print(parsed_arxiv_results[key]['summary'])
+
 
     # t1 = datetime.now()
     # print(f'QA_abstraction function started at {datetime.now().time().strftime("%X")}')
@@ -158,6 +160,7 @@ async def search_paper(message: SearchItem):
 
     clean_ref = get_references(parsed_arxiv_results, nearest_neighbors)
 
+
     if not nearest_neighbors:
         print('Cannot answer your question.')
     else:
@@ -169,6 +172,7 @@ async def search_paper(message: SearchItem):
 
         # relevant_pdfs = dict(url= (key, citation, llm_summary, text_chunk_from_pdf))
         relevant_pdfs, relevant_answers = await qa_pdf(question=message.search_term, k=5, parsed_arxiv_results=relevant_documents, question_embeddings=None)
+
 
     return {"question": relevant_answers[0].question,
             "answer": relevant_answers[0].answer,
