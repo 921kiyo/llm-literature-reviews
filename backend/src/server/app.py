@@ -94,22 +94,7 @@ def search_term_refiner(search_question) -> list:
                 output_queries.append(res)
     return output_queries
 
-def cohere_rerank(question , top_k, parsed_arxiv_results):
-    import cohere
-    secret_api = os.getenv('COHERE_API_KEY')
-    co = cohere.Client(secret_api)
-    url_arxiv = {}
-    for url in parsed_arxiv_results:
-        url_arxiv[url] = parsed_arxiv_results[url]["title"] + '  ---  ' + parsed_arxiv_results[url]["summary"]
-    mapping_url_arxiv = list(url_arxiv.keys())
-    arxiv_content = list(url_arxiv.values())
-    results = co.rerank(model="rerank-english-v2.0", query=question, documents=arxiv_content, top_n=top_k)
-    output_dic = {}
-    for obj in results:
-        url = mapping_url_arxiv[obj.index]
-        content = parsed_arxiv_results[url]
-        output_dic[url] = content
-    return output_dic
+
 
 @app.get("/")
 async def root():
@@ -144,27 +129,16 @@ async def search_paper(message: SearchItem):
         print(parsed_arxiv_results[key]['summary'])
 
 
-    # t1 = datetime.now()
-    # print(f'QA_abstraction function started at {datetime.now().time().strftime("%X")}')
-    # nearest_neighbors, question_embeddings, asb_answers = await qa_abstracts(question=message.search_term, k=5,
-    #                                                                          parsed_arxiv_results=parsed_arxiv_results)
-    # t2 = datetime.now()
-    # print(nearest_neighbors)
-    # print(f'QA_abstraction function runs for {t2-t1}')
-    print('\n' + '--'*10+'Before rerank ')
-    print(f'How many papers are there {len(parsed_arxiv_results)}')
-    t1 = datetime.now()
-    print(f'Cohrere Rerank function started at {datetime.now().time().strftime("%X")}')
-    nearest_neighbors = cohere_rerank(question = message.search_term, top_k = 5, parsed_arxiv_results=parsed_arxiv_results)
-    t2 = datetime.now()
-    print(f'Cohere rerank function runs for {t2-t1}')
 
-    print('\n' + '--'*10+'After rerank ')
-    print(f'How many papers are there {len(nearest_neighbors)}')
-    print()
+    start = datetime.datetime.now()
+    print(start.strftime("%H:%M:%S"))
+    nearest_neighbors, question_embeddings, asb_answers = await qa_abstracts(question=message.search_term, k=5,
+                                                                             parsed_arxiv_results=parsed_arxiv_results)
+    end = datetime.datetime.now()
+    print(end.strftime("%H:%M:%S"), f'elapsed (s): {(end - start).total_seconds():.3}')
+    print('-' * 50)
 
-    clean_ref = get_references(parsed_arxiv_results, nearest_neighbors)
-
+    clean_ref = get_references(parsed_arxiv_results, asb_answers[0].contexts)
 
 
     if not nearest_neighbors:
