@@ -1,5 +1,3 @@
-from .utils import maybe_is_code
-
 from langchain.text_splitter import TokenTextSplitter
 
 TextSplitter = TokenTextSplitter

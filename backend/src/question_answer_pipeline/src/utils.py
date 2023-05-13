@@ -351,6 +351,39 @@ def download_pdfs_from_arxiv(relevant_arxiv_results):
         if not os.path.exists(filepath):
             print(f"downloading: {filename}")
             result['download_handle'](FILE_DIRECTORY, filename=filename)
+
+
+def get_anthropic_response(question, splits):
+    from langchain.llms import Anthropic
+    from langchain import LLMChain
+    from langchain.prompts.chat import (
+        ChatPromptTemplate,
+        SystemMessage,
+        HumanMessage
+    )
+    LLM = Anthropic(model="claude-v1.3-100k", max_tokens_to_sample=500)
+
+    prefix = f"""I am a scholarly researcher and I provide 100 word concise and brief answers to your questions based solely on the provided research article. I will not provide unsolicited feedback. My answers will be as concise as possible with a max of 150 words. If i have to truncate 
+        an answer I will ask for permission to expand on my concise answer.
+
+        Research article:
+        {splits}"""
+
+    prefix = prefix.replace("\n", "")
+
+    system_message_prompt = SystemMessage(content=prefix)
+    conversation = [system_message_prompt]
+
+    human_input = question
+    human_message_prompt = HumanMessage(content=human_input)
+    conversation.append(human_message_prompt)
+
+    chat_prompt = ChatPromptTemplate.from_messages(conversation)
+    chain = LLMChain(llm=LLM, prompt=chat_prompt)
+    answer = chain.run(_="")  # not sure why langchain needs this placeholder argument to be passed
+
+    return answer
+
 #####################################
 # Possibly not needed
 #####################################
