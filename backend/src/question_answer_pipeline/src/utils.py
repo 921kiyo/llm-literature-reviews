@@ -81,7 +81,9 @@ async def qa_abstracts(question, k, parsed_arxiv_results=None):
         print('-' * 50)
         print('Answer from abstracts:')
         print(answer.formatted_answer)
-
+    print('\n What is answers[0]? \n')
+    print(answers[0].contexts)
+    print('-'*15+'\n')
     return answer.contexts, question_embeddings, answers
 
 
@@ -130,7 +132,11 @@ def parse_arxiv_json(arxiv_results):
 
         summary = arxiv_res['summary']
 
-        url_parsed_json[url] = {'summary': summary, 'citation': citation, 'key': key, "title": title, "authors": authors, "journal": source}
+        # unique_id and download pdf link
+        link = arxiv_res['pdf_link']
+        unique_id = url.split('/')[-1]
+
+        url_parsed_json[url] = {'unique_id': unique_id, 'download_link': link, 'summary': summary, 'citation': citation, 'key': key, "title": title, "authors": authors, "journal": source}
     return url_parsed_json
 
 
@@ -186,6 +192,15 @@ def embed_abstracts(parsed_arxiv_results):
             print(path)
             pickle.dump(save_dict, fp)
 
+def process_entry(entry_id, doc_info):
+    parse_pdf = readers.parse_pdf
+    citation = doc_info['citation']
+    key = doc_info['key']
+    unique_id = doc_info['unique_id']
+    url = doc_info['download_link']
+    splits, metadatas = parse_pdf(url, unique_id=unique_id, key=key, citation=citation, chunk_chars=1100, overlap=100)
+    return entry_id, splits, metadatas
+
 
 def embed_pdf_files(parsed_arxiv_results):
     """
@@ -203,25 +218,46 @@ def embed_pdf_files(parsed_arxiv_results):
 
     to_process = {k: v for k, v in parsed_arxiv_results.items() if k.split('/')[-1] in new_embeddings}
 
-    parse_pdf = readers.parse_pdf
+    # Online extracting pdf and parallelization. 
+    print('*'*50)
+    time1 = datetime.now()
+    
+    import multiprocessing
+    from tqdm import tqdm
+
+
+    # Create a pool of worker processes
+    pool = multiprocessing.Pool()
+
+    # Convert to_process dictionary to a list of pairs
+    entries = list(to_process.items())
+    def chunkify(lst):
+        num_chunks = multiprocessing.cpu_count()
+        chunk_size = len(lst) // num_chunks if len(lst) > num_chunks else 1
+        chunks = [lst[i:i + chunk_size] for i in range(0, len(lst), chunk_size)]
+        return chunks
+    # Chunkify the list of entries
+    chunks = chunkify(entries)
+
+    # Create a list to store the results
+    results = [pool.starmap_async(process_entry, chunk) for chunk in chunks]
+
+    # Close the pool and wait for the processes to finish
+    pool.close()
+    pool.join()
+
+    # Retrieve the results from the asynchronous tasks
     doc_splits = []
     doc_metadatas = []
-    for entry_id, doc_info in tqdm(to_process.items()):
-        # get file path for file f
-        f = entry_id.split('/')[-1] + '.pdf'
-        f_path = os.path.join(FILE_DIRECTORY, f)
 
-        print(f'Reading and Embedding: {f} at {f_path}')
-
-        citation = doc_info['citation']
-        key = doc_info['key']
-
-        # get texts (splits) and metadata (citation, key, key_with_page)
-
-        splits, metadatas = parse_pdf(f_path, key=key, citation=citation, chunk_chars=1100, overlap=100)
+    for result in results:
+        entry_id, splits, metadatas = result.get()
         doc_splits.append(splits)
         doc_metadatas.append(metadatas)
 
+    time2 = datetime.now()
+    print(f'The time for online reading and processing: {(time2 - time1).total_seconds()}')
+    print('&'*50)
     if doc_splits:
         doc_embeddings = embed_document(doc_splits, use_modal=os.environ['MODAL'])
 

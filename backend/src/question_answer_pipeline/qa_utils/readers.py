@@ -2,21 +2,25 @@ from .utils import maybe_is_code
 
 from langchain.text_splitter import TokenTextSplitter
 
+import io
+import PyPDF2
+import requests
+
 TextSplitter = TokenTextSplitter
 
-
-def parse_pdf(path, citation, key, chunk_chars=2000, overlap=50, peak=False):
-    import pypdf
-    unique_id = path.split('/')[-1][:-4]
+# TODO: make it run online
+def parse_pdf(path, unique_id, citation, key, chunk_chars=2000, overlap=50, peak=False):
     print(f'PDF reading file with unique_id: {unique_id}')
+    response = requests.get(path)
+    pdf_file = io.BytesIO(response.content)
+    reader = PyPDF2.PdfReader(pdf_file)
 
-    pdfFileObj = open(path, "rb")
-    pdfReader = pypdf.PdfReader(pdfFileObj)
+    # pdfReader = pypdf.PdfReader(pdfFileObj)
     splits = []
     split = ""
     pages = []
     metadatas = []
-    for i, page in enumerate(pdfReader.pages):
+    for i, page in enumerate(reader.pages):
         split += page.extract_text()
         pages.append(str(i + 1))
         # split could be so long it needs to be split
@@ -49,7 +53,6 @@ def parse_pdf(path, citation, key, chunk_chars=2000, overlap=50, peak=False):
                 key=f"{key} pages {pg}",
             )
         )
-    pdfFileObj.close()
     return splits, metadatas
 
 

@@ -7,10 +7,15 @@ from tqdm import tqdm
 import openai
 import os
 load_dotenv()
-import datetime
-from question_answer_pipeline.src.utils import qa_abstracts, qa_pdf, parse_arxiv_json
+
+from datetime import datetime
+
+from question_answer_pipeline.src.utils import qa_pdf, parse_arxiv_json, qa_abstracts
+
 
 app = FastAPI()
+
+time_spend = 0
 
 origins = [
    "http://192.168.211.:8000",
@@ -28,6 +33,7 @@ app.add_middleware(
 )
 
 def parse_search_results(results):
+    global time_spend
     # TODO this is so hacky, so will fix this later
     import os
     pdf_dir = os.path.join(os.getenv("ROOT_DIRECTORY"), "pdfs")
@@ -40,23 +46,19 @@ def parse_search_results(results):
             "entry_id": result.entry_id,
             'summary': result.summary,
             'title': result.title,
-            "authors": [{'name': author.name} for author in result.authors]
+            "authors": [{'name': author.name} for author in result.authors],
+            'pdf_link': result.pdf_url,
         })
-        filename = result.entry_id.split('/')[-1]+'.pdf'
-        filepath = os.path.join(pdf_dir, filename)
-        print(f'PDFdir: {pdf_dir}, filename: {filename}, filepath: {filepath}')
-        if not os.path.exists(filepath):
-            result.download_pdf(dirpath=pdf_dir, filename=filename)
     return output
 
-def get_references(parsed_arxiv_results, contexts):
+def get_references(parsed_arxiv_results, contexts=None):
     outputs = []
     for url in contexts.keys():
         output = {}
         output["title"] = parsed_arxiv_results[url]["title"]
         output["authors"] = parsed_arxiv_results[url]["authors"]
         output["journal"] = parsed_arxiv_results[url]["journal"]
-        output["llm_summary"] = contexts[url][2]
+        output["llm_summary"] = None
         output["url"] = url
         outputs.append(output)
     return outputs
@@ -88,6 +90,7 @@ def search_term_refiner(search_question) -> list:
     return output_queries
 
 
+
 @app.get("/")
 async def root():
     return {"message": "Hello World"}
@@ -101,6 +104,7 @@ async def ask_question(chat: Chat):
 
 @app.post("/search/")
 async def search_paper(message: SearchItem):
+    global time_spend
     refined_search_keywords = search_term_refiner(message.search_term)
     search_keyword = ' AND '.join(refined_search_keywords)
     search_results = arxiv.Search(
@@ -119,15 +123,18 @@ async def search_paper(message: SearchItem):
         print(f'Raw results: {key}')
         print(parsed_arxiv_results[key]['summary'])
 
-    start = datetime.datetime.now()
+
+
+    start = datetime.now()
     print(start.strftime("%H:%M:%S"))
     nearest_neighbors, question_embeddings, asb_answers = await qa_abstracts(question=message.search_term, k=5,
                                                                              parsed_arxiv_results=parsed_arxiv_results)
-    end = datetime.datetime.now()
+    end = datetime.now()
     print(end.strftime("%H:%M:%S"), f'elapsed (s): {(end - start).total_seconds():.3}')
     print('-' * 50)
 
     clean_ref = get_references(parsed_arxiv_results, asb_answers[0].contexts)
+
 
     if not nearest_neighbors:
         print('Cannot answer your question.')
@@ -135,21 +142,27 @@ async def search_paper(message: SearchItem):
         print(f'Nearest Neighbors: {list(nearest_neighbors.keys())}')
         print('Getting Answer from PDFs')
         relevant_documents = {url: parsed_arxiv_results[url] for url in nearest_neighbors}
-        print(f'{list(relevant_documents.keys())}')
+        print('\n ----- \n How many pdf I will be embedding: {}'.format(len(relevant_documents)))
+        print(f'{list(relevant_documents)}')
 
         # relevant_pdfs = dict(url= (key, citation, llm_summary, text_chunk_from_pdf))
         print('-' * 50)
-        start = datetime.datetime.now()
+
+        start = datetime.now()
         print(start.strftime("%H:%M:%S"))
-        relevant_pdfs, relevant_answers = await qa_pdf(question=message.search_term, k=5, parsed_arxiv_results=relevant_documents, question_embeddings=question_embeddings)
-        end = datetime.datetime.now()
+        relevant_pdfs, relevant_answers = await qa_pdf(question=message.search_term, k=5, parsed_arxiv_results=relevant_documents, question_embeddings=None)
+        end = datetime.now()
         print(end.strftime("%H:%M:%S"), f'elapsed (s): {(end - start).total_seconds():.3}')
         print('-' * 50)
+        time_spend += int((end - start).total_seconds())
+        print('*'*50 + '\n')
+        print(f'The time spent for downloading pdf and doing embedding is {time_spend}')
 
-    return {"question": asb_answers[0].question,
-            "answer": asb_answers[0].answer,
-            "context": asb_answers[0].context,
-            "contexts": asb_answers[0].contexts,
+    return {"question": relevant_answers[0].question,
+            "answer": relevant_answers[0].answer,
+            "context": relevant_answers[0].context,
+            "contexts": relevant_answers[0].contexts,
+
             "references": clean_ref,
             "arxiv_results": parsed_arxiv_results}
 
