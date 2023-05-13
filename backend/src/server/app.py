@@ -49,11 +49,6 @@ def parse_search_results(results):
             "authors": [{'name': author.name} for author in result.authors],
             'pdf_link': result.pdf_url,
         })
-        # filename = result.entry_id.split('/')[-1]+'.pdf'
-        # filepath = os.path.join(pdf_dir, filename)
-        # print(f'PDFdir: {pdf_dir}, filename: {filename}, filepath: {filepath}')
-        # if not os.path.exists(filepath):
-        #     result.download_pdf(dirpath=pdf_dir, filename=filename)
     return output
 
 def get_references(parsed_arxiv_results, contexts=None):
