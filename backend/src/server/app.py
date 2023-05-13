@@ -126,7 +126,7 @@ async def search_paper(message: SearchItem):
     search_keyword = ' AND '.join(refined_search_keywords)
     search_results = arxiv.Search(
         query = search_keyword,
-        max_results = 25,
+        max_results = 100,
         sort_by = arxiv.SortCriterion.Relevance,
         sort_order = arxiv.SortOrder.Descending
     ).results()
@@ -142,7 +142,7 @@ async def search_paper(message: SearchItem):
 
     start = datetime.datetime.now()
     print(start.strftime("%H:%M:%S"))
-    nearest_neighbors = cohere_rerank(question = message.search_term, top_k = 5, parsed_arxiv_results=parsed_arxiv_results)
+    nearest_neighbors = cohere_rerank(question = message.search_term, top_k = 10, parsed_arxiv_results=parsed_arxiv_results)
     end = datetime.datetime.now()
     print(end.strftime("%H:%M:%S"), f'elapsed (s): {(end - start).total_seconds():.3}')
     print('-' * 50)
@@ -160,7 +160,7 @@ async def search_paper(message: SearchItem):
         print('-' * 50)
         start = datetime.datetime.now()
         print(start.strftime("%H:%M:%S"))
-        relevant_pdfs, relevant_answers = await qa_pdf(question=message.search_term, k=30, parsed_arxiv_results=relevant_documents)
+        relevant_pdfs, relevant_answers = await qa_pdf(question=message.search_term, k=25, parsed_arxiv_results=relevant_documents)
         end = datetime.datetime.now()
         print(end.strftime("%H:%M:%S"), f'elapsed (s): {(end - start).total_seconds():.3}')
         print('-' * 50)
