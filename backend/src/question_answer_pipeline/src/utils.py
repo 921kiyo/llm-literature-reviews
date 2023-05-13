@@ -55,7 +55,7 @@ async def qa_pdf(question, k, parsed_arxiv_results, question_embeddings=None):
 
     return answer.contexts, answers
 
-'''
+
 async def qa_abstracts(question, k, parsed_arxiv_results=None):
     """
 
@@ -85,7 +85,7 @@ async def qa_abstracts(question, k, parsed_arxiv_results=None):
     print(answers[0].contexts)
     print('-'*15+'\n')
     return answer.contexts, question_embeddings, answers
-'''
+
 
 def parse_arxiv_json(arxiv_results):
     """
