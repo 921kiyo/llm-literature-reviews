@@ -91,6 +91,24 @@ def search_term_refiner(search_question) -> list:
     return output_queries
 
 
+def cohere_rerank(question , top_k, parsed_arxiv_results):
+    import cohere
+    secret_api = os.getenv('COHERE_API_KEY')
+    co = cohere.Client(secret_api)
+    url_arxiv = {}
+    for url in parsed_arxiv_results:
+        url_arxiv[url] = parsed_arxiv_results[url]["title"] + '  ---  ' + parsed_arxiv_results[url]["summary"]
+    mapping_url_arxiv = list(url_arxiv.keys())
+    arxiv_content = list(url_arxiv.values())
+    results = co.rerank(model="rerank-english-v2.0", query=question, documents=arxiv_content, top_n=top_k)
+    output_dic = {}
+    for obj in results:
+        url = mapping_url_arxiv[obj.index]
+        content = parsed_arxiv_results[url]
+        output_dic[url] = content
+    return output_dic
+
+
 @app.get("/")
 async def root():
     return {"message": "Hello World"}
@@ -124,8 +142,7 @@ async def search_paper(message: SearchItem):
 
     start = datetime.datetime.now()
     print(start.strftime("%H:%M:%S"))
-    nearest_neighbors, question_embeddings, asb_answers = await qa_abstracts(question=message.search_term, k=10,
-                                                                             parsed_arxiv_results=parsed_arxiv_results)
+    nearest_neighbors = cohere_rerank(question = message.search_term, top_k = 5, parsed_arxiv_results=parsed_arxiv_results)
     end = datetime.datetime.now()
     print(end.strftime("%H:%M:%S"), f'elapsed (s): {(end - start).total_seconds():.3}')
     print('-' * 50)
@@ -143,10 +160,12 @@ async def search_paper(message: SearchItem):
         print('-' * 50)
         start = datetime.datetime.now()
         print(start.strftime("%H:%M:%S"))
-        relevant_pdfs, relevant_answers = await qa_pdf(question=message.search_term, k=30, parsed_arxiv_results=relevant_documents, question_embeddings=question_embeddings)
+        relevant_pdfs, relevant_answers = await qa_pdf(question=message.search_term, k=30, parsed_arxiv_results=relevant_documents)
         end = datetime.datetime.now()
         print(end.strftime("%H:%M:%S"), f'elapsed (s): {(end - start).total_seconds():.3}')
         print('-' * 50)
+
+
 
     output_obj = relevant_answers
     clean_ref = get_references(parsed_arxiv_results, output_obj[0].contexts)
