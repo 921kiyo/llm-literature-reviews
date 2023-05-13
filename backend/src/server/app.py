@@ -71,6 +71,7 @@ def search_term_refiner(search_question) -> list:
                 If the search terms are not well-defined in the scientific community, return an empty list. \
                  Question: What is the current limitation of large language model? \
                         Answer: ['limitation', 'large language model']"
+
     message = [{"role": "system", "content": system}]
 
     message.append(
@@ -106,26 +107,34 @@ async def ask_question(chat: Chat):
 
 @app.post("/search/")
 async def search_paper(message: SearchItem):
+    ## Hyperparameters
+    max_results = 25
+    documents_for_full_analysis = 10
+    pdf_chunks_to_consider = 30
+
     refined_search_keywords = search_term_refiner(message.search_term)
-    search_keyword = ' AND '.join(refined_search_keywords)
+    search_keyword = ' OR '.join(refined_search_keywords)
+    print(search_keyword)
     search_results = arxiv.Search(
         query=search_keyword,
-        max_results=50,
+        max_results=max_results,
         sort_by=arxiv.SortCriterion.Relevance,
         sort_order=arxiv.SortOrder.Descending
     ).results()
-    if not search_results:
-        print(search_results)
-        print('NO RESULTS')
+
     search_results_list = parse_search_results(search_results)
     parsed_arxiv_results = parse_arxiv_json(search_results_list)
+
+    if not parsed_arxiv_results:
+        print(search_results)
+        print('NO RESULTS')
 
     for key in parsed_arxiv_results:
         print(f'Raw results: {key}')
 
     start = datetime.datetime.now()
     print(start.strftime("%H:%M:%S"))
-    nearest_neighbors, question_embeddings, asb_answers = await qa_abstracts(question=message.search_term, k=10,
+    nearest_neighbors, question_embeddings, asb_answers = await qa_abstracts(question=message.search_term, k=documents_for_full_analysis,
                                                                              parsed_arxiv_results=parsed_arxiv_results)
     end = datetime.datetime.now()
     print(end.strftime("%H:%M:%S"), f'elapsed (s): {(end - start).total_seconds():.3}')
@@ -150,7 +159,8 @@ async def search_paper(message: SearchItem):
         print('-' * 50)
         start = datetime.datetime.now()
         print(start.strftime("%H:%M:%S"))
-        relevant_pdfs, relevant_answers = await qa_pdf(question=message.search_term, k=30,
+        relevant_pdfs, relevant_answers = await qa_pdf(question=message.search_term,
+                                                       k=pdf_chunks_to_consider,
                                                        parsed_arxiv_results=relevant_documents,
                                                        question_embeddings=question_embeddings)
         end = datetime.datetime.now()

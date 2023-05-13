@@ -46,7 +46,8 @@ async def qa_pdf(question, k, parsed_arxiv_results, question_embeddings=None):
         question_embeddings = embed_questions(queries, use_modal=os.environ['MODAL'])
 
     print('getting answers')
-    answers = await make_query(docs, queries, question_embeddings, k=k, vector_search_only=False)
+    answers = await make_query(docs, queries, question_embeddings, k=k, max_sources=10 if k >= 10 else k,
+                               vector_search_only=False)
 
     for answer in answers:
         print('-' * 20)
@@ -133,7 +134,9 @@ def parse_arxiv_json(arxiv_results):
         summary = arxiv_res['summary']
         download_handle = arxiv_res['download_handle']
 
-        url_parsed_json[url] = {'summary': summary, 'citation': citation, 'key': key, "title": title, "authors": authors, "journal": source, 'download_handle': download_handle, 'unique_id': unique_id}
+        url_parsed_json[url] = {'summary': summary, 'citation': citation, 'key': key, "title": title,
+                                "authors": authors, "journal": source, 'download_handle': download_handle,
+                                'unique_id': unique_id}
     return url_parsed_json
 
 
@@ -182,11 +185,9 @@ def embed_abstracts(parsed_arxiv_results):
         save_dict = [splits, file_embeddings, metadata, num_tokens]
 
         path = os.path.join(ABSTRACTS_EMB_DIR, entry_id.split('/')[-1] + '.pkl')
-        print(f'Saving abstract embeddings to path: {path}')
 
         # save embeddings
         with open(path, 'wb') as fp:
-            print(path)
             pickle.dump(save_dict, fp)
 
 
@@ -209,12 +210,11 @@ def embed_pdf_files(parsed_arxiv_results):
     parse_pdf = readers.parse_pdf
     doc_splits = []
     doc_metadatas = []
+    print(f'Reading and Embedding')
     for entry_id, doc_info in tqdm(to_process.items()):
         # get file path for file f
         f = entry_id.split('/')[-1] + '.pdf'
         f_path = os.path.join(FILE_DIRECTORY, f)
-
-        print(f'Reading and Embedding: {f} at {f_path}')
 
         citation = doc_info['citation']
         key = doc_info['key']
@@ -314,9 +314,10 @@ def from_pdfs_docstore(parsed_arxiv_results):
     return docs
 
 
-async def make_query(docs, queries, question_embeddings, k=5, vector_search_only=False):
+async def make_query(docs, queries, question_embeddings, k=5, max_sources=None, vector_search_only=False):
     """
 
+    :param max_sources:
     :param docs:
     :param queries:
     :param question_embeddings:
@@ -325,6 +326,9 @@ async def make_query(docs, queries, question_embeddings, k=5, vector_search_only
     :return: Answer.contexts: Contains results from nearest neighbors search:
                                 dict(url=(key, citation, summary, chunked_text))
     """
+    if max_sources is None:
+        max_sources = k
+
     answers = []
     length_prompt = 'about 50 words'
     for query, embedding in zip(queries, question_embeddings):
@@ -332,11 +336,11 @@ async def make_query(docs, queries, question_embeddings, k=5, vector_search_only
                                         embedding=embedding,
                                         length_prompt=length_prompt,
                                         k=k,
-                                        vector_search_only=vector_search_only)
-                                        )
+                                        vector_search_only=vector_search_only,
+                                        max_sources=max_sources)
+                       )
 
     return answers
-
 
 def download_relevant_documents(relevant_documents):
     """
