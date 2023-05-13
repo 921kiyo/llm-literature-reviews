@@ -79,7 +79,6 @@ async def qa_abstracts(question, k, parsed_arxiv_results=None):
 
     for answer in answers:
         # answer.contexts = dict(url=(key, citation, LLM summary related to question, original_text))
-        print('-' * 50)
         print('Answer from abstracts:')
         print(answer.formatted_answer)
 
@@ -151,7 +150,7 @@ def embed_abstracts(parsed_arxiv_results):
 
     arxiv_entries = set([i.split('/')[-1] for i in parsed_arxiv_results.keys()])
     new_embeddings = arxiv_entries - existing_embeddings
-    print(f'Embeddings to process: {new_embeddings}')
+    print(f'Embeddings to process: {len(new_embeddings)}')
 
     to_process = {k: v for k, v in parsed_arxiv_results.items() if k.split('/')[-1] in new_embeddings}
 
@@ -163,9 +162,7 @@ def embed_abstracts(parsed_arxiv_results):
     if doc_splits:
         doc_embeddings = embed_document([doc_splits], use_modal=os.environ['MODAL'])
 
-    for i, (entry_id, doc_info) in enumerate(tqdm(to_process.items())):
-        print(f"Processing: {entry_id}: {entry_id.split('/')[-1]}")
-
+    for i, (entry_id, doc_info) in enumerate(to_process.items()):
         unique_id = entry_id
         citation = doc_info['citation']
         key = doc_info['key']
@@ -203,14 +200,14 @@ def embed_pdf_files(parsed_arxiv_results):
 
     arxiv_entries = set([i.split('/')[-1] for i in parsed_arxiv_results.keys()])
     new_embeddings = arxiv_entries - existing_embeddings
-    print(f'Embeddings to process: {new_embeddings}')
+    print(f'# PDFs to embed: {len(new_embeddings)}')
 
     to_process = {k: v for k, v in parsed_arxiv_results.items() if k.split('/')[-1] in new_embeddings}
 
     parse_pdf = readers.parse_pdf
     doc_splits = []
     doc_metadatas = []
-    print(f'Reading and Embedding')
+    print(f'Parsing PDFs')
     for entry_id, doc_info in tqdm(to_process.items()):
         # get file path for file f
         f = entry_id.split('/')[-1] + '.pdf'
@@ -229,8 +226,7 @@ def embed_pdf_files(parsed_arxiv_results):
         doc_embeddings = embed_document(doc_splits, use_modal=os.environ['MODAL'])
 
     # read pdf, embed chunks
-    for i, (entry_id, doc_info) in enumerate(tqdm(to_process.items())):
-        print(f'Processing: {entry_id}')
+    for i, (entry_id, doc_info) in enumerate(to_process.items()):
 
         file_embeddings, num_tokens = doc_embeddings[i]['file_embeddings'], doc_embeddings[i]['num_tokens']
 
@@ -239,7 +235,6 @@ def embed_pdf_files(parsed_arxiv_results):
 
         path = os.path.join(PDF_EMB_DIR, entry_id.split('/')[-1] + '.pkl')
 
-        print(f'Saving pdf embeddings to path: {path}')
         # save embeddings
         with open(path, 'wb') as fp:
             pickle.dump(save_dict, fp)
@@ -251,7 +246,6 @@ def create_docs(relevant_documents, dir):
     :param relevant_documents: unique id for documents from search
     :return:
     """
-    print('Building DOCS')
     docs = Docs()
 
     for no_files, f in enumerate(relevant_documents):
@@ -272,8 +266,6 @@ def create_docs(relevant_documents, dir):
                                  texts=summary,
                                  text_embeddings=file_embeddings,
                                  metadatas=metadata)
-
-        print(f'added {no_files + 1} files to docs')
 
     return docs
 

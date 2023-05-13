@@ -113,8 +113,8 @@ async def search_paper(message: SearchItem):
     pdf_chunks_to_consider = 30
 
     refined_search_keywords = search_term_refiner(message.search_term)
-    search_keyword = ' OR '.join(refined_search_keywords)
-    print(search_keyword)
+    search_keyword = ' and '.join(refined_search_keywords)
+
     search_results = arxiv.Search(
         query=search_keyword,
         max_results=max_results,
@@ -129,15 +129,13 @@ async def search_paper(message: SearchItem):
         print(search_results)
         print('NO RESULTS')
 
-    for key in parsed_arxiv_results:
-        print(f'Raw results: {key}')
-
+    print('-' * 50)
     start = datetime.datetime.now()
-    print(start.strftime("%H:%M:%S"))
+    print(f'starting qa_abstracts: {start.strftime("%H:%M:%S")}')
     nearest_neighbors, question_embeddings, asb_answers = await qa_abstracts(question=message.search_term, k=documents_for_full_analysis,
                                                                              parsed_arxiv_results=parsed_arxiv_results)
     end = datetime.datetime.now()
-    print(end.strftime("%H:%M:%S"), f'elapsed (s): {(end - start).total_seconds():.3}')
+    print('Finished qa_abstracts: ', end.strftime("%H:%M:%S"), f'elapsed (s): {(end - start).total_seconds():.3}')
     print('-' * 50)
 
     clean_ref = get_references(parsed_arxiv_results, asb_answers[0].contexts)
@@ -147,13 +145,11 @@ async def search_paper(message: SearchItem):
         print('Cannot answer your question.')
     else:
         # TODO: download papers here not at the beginning.
-        print(f'Nearest Neighbors: {list(nearest_neighbors.keys())}')
+        print(f'Nearest Neighbors: {len(list(nearest_neighbors.keys()))}')
         print('Getting Answer from PDFs')
         relevant_documents = {url: parsed_arxiv_results[url] for url in nearest_neighbors}
 
         download_relevant_documents(relevant_documents)
-
-        print(f'{list(relevant_documents.keys())}')
 
         # relevant_pdfs = dict(url= (key, citation, llm_summary, text_chunk_from_pdf))
         print('-' * 50)
@@ -166,9 +162,6 @@ async def search_paper(message: SearchItem):
         end = datetime.datetime.now()
         print(end.strftime("%H:%M:%S"), f'elapsed (s): {(end - start).total_seconds():.3}')
         print('-' * 50)
-
-        print(f'ABS KEYS: {list(asb_answers[0].contexts.keys())}', '\n',
-              f'PDF KEYS: {list(relevant_answers[0].contexts.keys())}')
 
         output_obj = relevant_answers
         clean_ref = get_references(parsed_arxiv_results, output_obj[0].contexts)

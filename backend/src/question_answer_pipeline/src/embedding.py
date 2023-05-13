@@ -125,9 +125,7 @@ def embed_document(doc_splits, use_modal='false', map_splits=False):
     if use_modal.lower() == 'true':
         # Here we split per document
 
-        print('MODAL ENTRYPOINT: Using MODAL')
-        print('Mapping per document')
-
+        print('Embedding Document')
         f = modal.Function.lookup(MODAL_DEPLOYMENT, "embed_file_splits")
         # f = embed_file_splits
         iterable_ = [(splits, map_splits) for splits in doc_splits]
