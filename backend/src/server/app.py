@@ -7,9 +7,11 @@ from tqdm import tqdm
 import openai
 import os
 load_dotenv()
+
 from datetime import datetime
 
 from question_answer_pipeline.src.utils import qa_pdf, parse_arxiv_json
+
 
 app = FastAPI()
 
@@ -141,6 +143,7 @@ async def search_paper(message: SearchItem):
         print(f'Raw results: {key}')
         print(parsed_arxiv_results[key]['summary'])
 
+
     # t1 = datetime.now()
     # print(f'QA_abstraction function started at {datetime.now().time().strftime("%X")}')
     # nearest_neighbors, question_embeddings, asb_answers = await qa_abstracts(question=message.search_term, k=5,
@@ -162,6 +165,8 @@ async def search_paper(message: SearchItem):
 
     clean_ref = get_references(parsed_arxiv_results, nearest_neighbors)
 
+
+
     if not nearest_neighbors:
         print('Cannot answer your question.')
     else:
@@ -173,6 +178,7 @@ async def search_paper(message: SearchItem):
 
         # relevant_pdfs = dict(url= (key, citation, llm_summary, text_chunk_from_pdf))
         print('-' * 50)
+
         start = datetime.now()
         print(start.strftime("%H:%M:%S"))
         relevant_pdfs, relevant_answers = await qa_pdf(question=message.search_term, k=5, parsed_arxiv_results=relevant_documents, question_embeddings=None)
@@ -187,6 +193,7 @@ async def search_paper(message: SearchItem):
             "answer": relevant_answers[0].answer,
             "context": relevant_answers[0].context,
             "contexts": relevant_answers[0].contexts,
+
             "references": clean_ref,
             "arxiv_results": parsed_arxiv_results}
 
