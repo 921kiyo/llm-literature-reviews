@@ -13,3 +13,5 @@ python-dotenv~=1.0.0
 openai~=0.27.6
 faiss-cpu~=1.7.4
 pypdf~=3.8.1
+cohere
+anthropic

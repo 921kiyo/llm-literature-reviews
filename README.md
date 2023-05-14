@@ -18,6 +18,7 @@ export MODAL=false
 export OPENAI_API_KEY=sk-XXX
 export ROOT_DIRECTORY=local-directory
 export COHERE_API_KEY=your_key
+export ANTHROPIC_API_KEY=your_key
 ```
 
 ## The Docs Class
