@@ -17,6 +17,8 @@ const Home: NextPage = () => {
 
   const bioRef = useRef<null | HTMLDivElement>(null);
 
+  const [chatLoading, setChatLoading] = useState(false);
+
   const scrollToBios = () => {
     if (bioRef.current !== null) {
       bioRef.current.scrollIntoView({ behavior: "smooth" });
@@ -48,24 +50,6 @@ const Home: NextPage = () => {
     setReferences(data.references);
     setArxivResults(data.arxiv_results);
     setLoading(false);
-    // // This data is a ReadableStream
-    // const data = response.body;
-    // if (!data) {
-    //   return;
-    // }
-
-    // const reader = data.getReader();
-    // const decoder = new TextDecoder();
-    // let done = false;
-
-    // while (!done) {
-    //   const { value, done: doneReading } = await reader.read();
-    //   done = doneReading;
-    //   const chunkValue = decoder.decode(value);
-    //   setAnswer((prev) => prev + chunkValue);
-    // }
-    // scrollToBios();
-    // setLoading(false);
   };
 
   const [showChat, setShowChat] = useState<number | null>(null);
@@ -80,6 +64,8 @@ const Home: NextPage = () => {
     e.preventDefault();
     console.log("what is parsed_arxiv_results? ");
     console.log(parsed_arxiv_results);
+    setChatAnswer("");
+    setChatLoading(true);
     const response = await fetch("http://127.0.0.1:8000/chat/", {
       method: "POST",
       headers: {
@@ -97,6 +83,7 @@ const Home: NextPage = () => {
     }
     const data = await response.json();
     setChatAnswer(data.answer);
+    setChatLoading(false);
   };
 
   return (
@@ -185,9 +172,10 @@ const Home: NextPage = () => {
                     <div className="text-gray-700">{reference.llm_summary}</div>
 
                     <button
-                      onClick={() =>
-                        setShowChat(showChat === index ? null : index)
-                      }
+                      onClick={() => {
+                        setShowChat(showChat === index ? null : index);
+                        setChatQuestion("");
+                      }}
                       className="bg-blue-500 rounded-lg text-white font-medium px-2 py-1 hover:bg-blue-700 w-full mt-2"
                     >
                       {showChat === index
@@ -203,15 +191,24 @@ const Home: NextPage = () => {
                           placeholder="Type your question here..."
                           className="w-full rounded-md border-gray-300 shadow-sm focus:border-black focus:ring-black"
                         />
-
-                        <button
-                          onClick={(e) =>
-                            askQuestionToPaper(e, reference.url, arxivResults)
-                          }
-                          className="bg-green-500 rounded-lg text-white font-medium px-2 py-1 hover:bg-green-700 w-full mt-2"
-                        >
-                          Ask question
-                        </button>
+                        {!chatLoading && (
+                          <button
+                            onClick={(e) =>
+                              askQuestionToPaper(e, reference.url, arxivResults)
+                            }
+                            className="bg-green-500 rounded-lg text-white font-medium px-2 py-1 hover:bg-green-700 w-full mt-2"
+                          >
+                            Ask question
+                          </button>
+                        )}
+                        {chatLoading && (
+                          <button
+                            className="bg-green-500 rounded-lg text-white font-medium px-2 py-1 hover:bg-green-700 w-full mt-2"
+                            disabled
+                          >
+                            <LoadingDots color="white" style="large" />
+                          </button>
+                        )}
 
                         {chatAnswer && (
                           <div className="mt-2 p-2 bg-gray-200 rounded-lg">
