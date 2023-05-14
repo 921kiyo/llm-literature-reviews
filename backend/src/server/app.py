@@ -115,6 +115,9 @@ async def root():
 
 @app.post("/chat/")
 async def ask_question(chat: Chat):
+    # relevant_documents = {chat.url: chat.parsed_arxiv_results[chat.url]}
+    # relevant_pdfs, relevant_answers = await qa_pdf(question=chat.question, k=20, parsed_arxiv_results=relevant_documents)
+    # return {"answer": relevant_answers[0].answer}
 
     f_path = os.path.join(os.getenv('ROOT_DIRECTORY'), 'pdfs', os.path.split(chat.url)[1] + '.pdf')
     splits, _ = parse_pdf(f_path,
