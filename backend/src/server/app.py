@@ -136,6 +136,7 @@ async def ask_question(chat: Chat):
 async def search_paper(message: SearchItem):
     refined_search_keywords = search_term_refiner(message.search_term)
     search_keyword = ' AND '.join(refined_search_keywords)
+    print("search keyword: " + search_keyword)
     search_results = arxiv.Search(
         query = search_keyword,
         max_results = 100,

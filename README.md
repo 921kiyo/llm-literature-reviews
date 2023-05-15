@@ -1,3 +1,17 @@
+# AI Research Assistant - Misery-free literature reviews
+
+## Motivation
+
+TODO Some description about this project
+
+Gifs?
+
+## Technical Architecture
+
+Brief description of this project
+
+# Installation
+
 ## How to run Frontend
 
 1. `cd frontend`
@@ -19,25 +33,4 @@ export OPENAI_API_KEY=sk-XXX
 export ROOT_DIRECTORY=local-directory
 export COHERE_API_KEY=your_key
 export ANTHROPIC_API_KEY=your_key
-```
-
-## The Docs Class
-
-### Document Metadata
-
-metadata is used to identify embeddings in the database.
-Constructed as:
-
-```
-dict(
-    citation=citation for document,
-    dockey=document identifier,
-    key=identifier for specific chunk (i.e. page in document")
-)
-example:
-    pdf_metadata = dict(
-                        citation= 'MLA citation',
-                        dockey= 'Author, year',
-                        key= 'Author, year. - Page 1'
-                    )
 ```
