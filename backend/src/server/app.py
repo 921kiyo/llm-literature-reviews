@@ -162,6 +162,7 @@ async def ask_question(chat: Chat):
 async def search_paper(message: SearchItem):
     refined_search_keywords = search_term_refiner(message.search_term)
     search_keyword = ' AND '.join(refined_search_keywords)
+
     # search_results = arxiv.Search(
     #     query = search_keyword,
     #     max_results = 100,
@@ -182,6 +183,7 @@ async def search_paper(message: SearchItem):
     if (not arxiv_results) and (not google_scholar_results):
         print(arxiv_results)
         print(google_scholar_results)
+
         print('NO RESULTS')
     search_results_list = parse_search_results(arxiv_results)
     parsed_arxiv_results = parse_arxiv_json(search_results_list)
