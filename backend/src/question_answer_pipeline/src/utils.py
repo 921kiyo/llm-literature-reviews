@@ -1,5 +1,6 @@
 import os
 from datetime import datetime
+import requests
 from InstructorEmbedding import INSTRUCTOR
 import json
 from tqdm import tqdm
@@ -134,9 +135,31 @@ def parse_arxiv_json(arxiv_results):
 
         url_parsed_json[url] = {'summary': summary, 'citation': citation, 'key': key, "title": title,
                                 "authors": authors, "journal": source, 'download_handle': download_handle,
-                                'unique_id': unique_id}
+                                'unique_id': unique_id, 'From_Arxiv': True, 'download_url': None}
     return url_parsed_json
 
+def parse_gscholar_json(search_results):
+    results = search_results['organic_results']
+    url_parsed_json = {}
+    for result in results:
+        if 'resources' in result.keys(): 
+            title = result['title']
+            for key, item in list(result['publication_info'].items()):
+                if key == 'summary':
+                    newItem = item.split('-')
+                    authors = newItem[0].split(', ')
+                    author = authors[0].rstrip()
+                    journal = newItem[-1].lstrip()
+                    year = newItem[1].split(', ')[-1].rstrip()
+                    key = f"{author}, {year}"
+                    citation = author + '. ' + title + '. ' + journal + '. ' + year + '. ' 
+                    unique_id = result['result_id']
+                    link = result['resources'][0]['link']
+                    summary = result['snippet']
+                    url_parsed_json[unique_id] = {'summary': summary,'citation': citation, 'key': key, "title": title, 
+                                                  "authors": author, "journal": journal,'download_handle': None,
+                                                   'unique_id': unique_id, 'From_Arxiv': False, 'download_url': link}
+    return url_parsed_json
 
 def embed_abstracts(parsed_arxiv_results):
     """
@@ -511,6 +534,14 @@ def files_for_search(file_directory, delete_remove=True):
 
     return files_not_embedded, files_removed
 
+def is_pdf(url):
+    response = requests.head(url)
+    content_type = response.headers.get('content-type')
+
+    if content_type is not None and 'application/pdf' in content_type.lower():
+        return True
+    return False
+
 def download_relevant_documents(relevant_documents):
     """
     :param: relevant_arxiv_results: arxiv results object from nearest_neighbor search
@@ -522,4 +553,19 @@ def download_relevant_documents(relevant_documents):
         pdf_dir = os.path.join(os.getenv("ROOT_DIRECTORY"), "pdfs")
         filepath = os.path.join(pdf_dir, filename)
         if not os.path.exists(filepath):
-            rlv['download_handle'](dirpath=pdf_dir, filename=filename)
+            _bool = rlv['From_Arxiv']
+            print(type(_bool), _bool)
+            if _bool:
+                rlv['download_handle'](dirpath=pdf_dir, filename=filename)
+            else:
+                download_url = rlv['download_url']
+                print("The download_url is: ", download_url)
+                if is_pdf(download_url):
+                    response = requests.get(rlv['download_url'])
+                    # print('The response is: ',response.content)
+                    with open(filepath, 'wb') as file:
+                        file.write(response.content)
+                else:
+                    import pdfkit
+                    pdfkit.from_url(download_url, filepath)
+
