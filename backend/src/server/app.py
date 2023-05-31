@@ -8,8 +8,11 @@ import openai
 import os
 load_dotenv()
 import datetime
-from question_answer_pipeline.src.utils import qa_abstracts, qa_pdf, parse_arxiv_json, download_relevant_documents, get_anthropic_response
+from question_answer_pipeline.src.utils import qa_abstracts, qa_pdf, parse_arxiv_json, \
+    download_relevant_documents, get_anthropic_response, parse_gscholar_json
 from question_answer_pipeline.qa_utils.readers import parse_pdf
+from concurrent.futures import ThreadPoolExecutor
+from serpapi import GoogleSearch
 app = FastAPI()
 
 origins = [
@@ -108,6 +111,29 @@ def cohere_rerank(question , top_k, parsed_arxiv_results):
         output_dic[url] = content
     return output_dic
 
+def search_arxiv(search_keyword: str):
+        search_results = arxiv.Search(
+            query=search_keyword,
+            max_results=100,
+            sort_by=arxiv.SortCriterion.Relevance,
+            sort_order=arxiv.SortOrder.Descending
+        ).results()
+        return search_results
+    # Process the arXiv search results here
+
+# Define a function for the second command
+def search_google_scholar(search_keyword: str):
+    serpai_api_key = os.getenv('SERPAPI_API_KEY')
+    params = {
+        "engine": "google_scholar",
+        "q": search_keyword,
+        "hl": "en",
+        "num": 20,
+        "api_key": serpai_api_key
+    }
+    search = GoogleSearch(params)
+    results = search.get_dict()
+    return results
 
 @app.get("/")
 async def root():
@@ -136,18 +162,33 @@ async def ask_question(chat: Chat):
 async def search_paper(message: SearchItem):
     refined_search_keywords = search_term_refiner(message.search_term)
     search_keyword = ' AND '.join(refined_search_keywords)
-    print("search keyword: " + search_keyword)
-    search_results = arxiv.Search(
-        query = search_keyword,
-        max_results = 100,
-        sort_by = arxiv.SortCriterion.Relevance,
-        sort_order = arxiv.SortOrder.Descending
-    ).results()
-    if not search_results:
-        print(search_results)
+
+    # search_results = arxiv.Search(
+    #     query = search_keyword,
+    #     max_results = 100,
+    #     sort_by = arxiv.SortCriterion.Relevance,
+    #     sort_order = arxiv.SortOrder.Descending
+    # ).results()
+
+        # Create a ThreadPoolExecutor with maximum concurrent threads
+    with ThreadPoolExecutor(max_workers=2) as executor:
+        # Submit the functions to the executor
+        arxiv_future = executor.submit(search_arxiv, search_keyword)
+        google_scholar_future = executor.submit(search_google_scholar, message.search_term)
+
+        # Wait for the results
+        arxiv_results = arxiv_future.result()
+        google_scholar_results = google_scholar_future.result()
+
+    if (not arxiv_results) and (not google_scholar_results):
+        print(arxiv_results)
+        print(google_scholar_results)
+
         print('NO RESULTS')
-    search_results_list = parse_search_results(search_results)
+    search_results_list = parse_search_results(arxiv_results)
     parsed_arxiv_results = parse_arxiv_json(search_results_list)
+    google_scholar_json = parse_gscholar_json(google_scholar_results)
+    parsed_arxiv_results.update(google_scholar_json)
 
     for key in parsed_arxiv_results:
         print(f'Raw results: {key}')
@@ -166,6 +207,7 @@ async def search_paper(message: SearchItem):
         print(f'Nearest Neighbors: {list(nearest_neighbors.keys())}')
         print('Getting Answer from PDFs')
         relevant_documents = {url: parsed_arxiv_results[url] for url in nearest_neighbors}
+        print(relevant_documents)
         download_relevant_documents(relevant_documents)
         print(f'{list(relevant_documents.keys())}')
 
